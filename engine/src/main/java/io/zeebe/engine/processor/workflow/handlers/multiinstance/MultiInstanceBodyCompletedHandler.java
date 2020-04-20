@@ -15,6 +15,7 @@ import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableMul
 import io.zeebe.msgpack.spec.MsgPackReader;
 import io.zeebe.msgpack.spec.MsgPackWriter;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
@@ -31,10 +32,11 @@ public final class MultiInstanceBodyCompletedHandler extends AbstractMultiInstan
   private final DirectBuffer resultBuffer = new UnsafeBuffer(0, 0);
 
   public MultiInstanceBodyCompletedHandler(
-      final Function<BpmnStep, BpmnStepHandler> innerHandlerLookup,
+      final Function<BpmnStep, BpmnStepHandler> handlerLookup,
+      final Consumer<BpmnStepContext<?>> innerHandler,
       final ExpressionProcessor expressionProcessor) {
-    super(null, innerHandlerLookup, expressionProcessor);
-    this.multiInstanceBodyHandler = innerHandlerLookup.apply(BpmnStep.FLOWOUT_ELEMENT_COMPLETED);
+    super(null, innerHandler, expressionProcessor);
+    multiInstanceBodyHandler = handlerLookup.apply(BpmnStep.FLOWOUT_ELEMENT_COMPLETED);
   }
 
   @Override

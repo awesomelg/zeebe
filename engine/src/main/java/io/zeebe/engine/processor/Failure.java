@@ -7,6 +7,7 @@
  */
 package io.zeebe.engine.processor;
 
+import io.zeebe.protocol.record.value.ErrorType;
 import java.util.Objects;
 
 /** Simple String wrapper for when something fails and a message needs to be used. */
@@ -14,8 +15,24 @@ public final class Failure {
 
   private final String message;
 
+  private final ErrorType errorType;
+
   public Failure(final String message) {
     this.message = message;
+    errorType = null;
+  }
+
+  public Failure(final String message, final ErrorType errorType) {
+    this.message = message;
+    this.errorType = errorType;
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public ErrorType getErrorType() {
+    return errorType;
   }
 
   @Override

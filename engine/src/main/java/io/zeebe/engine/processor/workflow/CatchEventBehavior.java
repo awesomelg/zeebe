@@ -57,7 +57,7 @@ public final class CatchEventBehavior {
       final SubscriptionCommandSender subscriptionCommandSender,
       final int partitionsCount) {
     this.state = state;
-    this.expressionProcessor = exporessionProcessor;
+    expressionProcessor = exporessionProcessor;
     this.subscriptionCommandSender = subscriptionCommandSender;
     this.partitionsCount = partitionsCount;
   }
@@ -274,6 +274,7 @@ public final class CatchEventBehavior {
       final MessageCorrelationKeyContext scopeContext) {
     extractedCorrelationKeys.clear();
 
+    // TODO (saig0): extract logic to resolve the variable scope key
     for (final ExecutableCatchEvent event : events) {
       if (event.isMessage()) {
         final MessageCorrelationKeyContext context =

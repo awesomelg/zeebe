@@ -9,6 +9,7 @@ package io.zeebe.util;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -108,6 +109,13 @@ public interface Either<L, R> {
    */
   <T> Either<T, R> mapLeft(Function<? super L, ? extends T> left);
 
+  /**
+   * Performs the given action with the value if this is a {@link Right}, otherwise does nothing.
+   *
+   * @param action the consuming function for the right value
+   */
+  void ifRight(Consumer<R> action);
+
   final class Right<L, R> implements Either<L, R> {
 
     private final R value;
@@ -138,6 +146,7 @@ public interface Either<L, R> {
 
     @Override
     public <T> Either<L, T> map(final Function<? super R, ? extends T> right) {
+      // todo(@korthout): consider a lazy evaluated implementation
       return Either.right(right.apply(this.value));
     }
 
@@ -145,6 +154,11 @@ public interface Either<L, R> {
     @SuppressWarnings("unchecked")
     public <T> Either<T, R> mapLeft(final Function<? super L, ? extends T> left) {
       return (Either<T, R>) this;
+    }
+
+    @Override
+    public void ifRight(final Consumer<R> right) {
+      right.accept(this.value);
     }
 
     @Override
@@ -207,6 +221,11 @@ public interface Either<L, R> {
     @Override
     public <T> Either<T, R> mapLeft(final Function<? super L, ? extends T> left) {
       return Either.left(left.apply(this.value));
+    }
+
+    @Override
+    public void ifRight(final Consumer<R> right) {
+      // do nothing
     }
 
     @Override

@@ -151,7 +151,7 @@ public final class ExpressionProcessor {
       case STRING:
         try {
           return Either.right(Interval.parse(result.getString()));
-        } catch (DateTimeParseException e) {
+        } catch (final DateTimeParseException e) {
           return Either.left(
               new Failure(
                   String.format(
