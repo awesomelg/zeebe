@@ -72,6 +72,7 @@ public class RaftServiceContext implements ServiceContext {
   private long timestampDelta;
   private OperationType currentOperation;
   private boolean deleted;
+  private Session currentSession;
 
   public RaftServiceContext(
       final PrimitiveId primitiveId,

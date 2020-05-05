@@ -101,7 +101,7 @@ public final class ZeebeRaftStateMachine implements RaftStateMachine {
 
   @Override
   public void close() {
-    raft.checkThread();
+//    raft.checkThread();
     logger.debug("Closing state machine {}", raft.getName());
     reader.close();
   }

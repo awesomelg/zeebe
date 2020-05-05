@@ -20,28 +20,19 @@ import io.atomix.primitive.PrimitiveException;
 import io.atomix.raft.RaftError;
 import io.atomix.raft.RaftException;
 import io.atomix.raft.RaftServer;
-import io.atomix.raft.ReadConsistency;
 import io.atomix.raft.impl.OperationResult;
 import io.atomix.raft.impl.RaftContext;
 import io.atomix.raft.metrics.SnapshotReplicationMetrics;
 import io.atomix.raft.protocol.AppendRequest;
 import io.atomix.raft.protocol.AppendResponse;
-import io.atomix.raft.protocol.CloseSessionRequest;
-import io.atomix.raft.protocol.CloseSessionResponse;
-import io.atomix.raft.protocol.CommandRequest;
-import io.atomix.raft.protocol.CommandResponse;
 import io.atomix.raft.protocol.InstallRequest;
 import io.atomix.raft.protocol.InstallResponse;
 import io.atomix.raft.protocol.JoinRequest;
 import io.atomix.raft.protocol.JoinResponse;
-import io.atomix.raft.protocol.KeepAliveRequest;
-import io.atomix.raft.protocol.KeepAliveResponse;
 import io.atomix.raft.protocol.LeaveRequest;
 import io.atomix.raft.protocol.LeaveResponse;
 import io.atomix.raft.protocol.MetadataRequest;
 import io.atomix.raft.protocol.MetadataResponse;
-import io.atomix.raft.protocol.OpenSessionRequest;
-import io.atomix.raft.protocol.OpenSessionResponse;
 import io.atomix.raft.protocol.OperationResponse;
 import io.atomix.raft.protocol.PollRequest;
 import io.atomix.raft.protocol.PollResponse;
@@ -52,7 +43,6 @@ import io.atomix.raft.protocol.ReconfigureRequest;
 import io.atomix.raft.protocol.ReconfigureResponse;
 import io.atomix.raft.protocol.VoteRequest;
 import io.atomix.raft.protocol.VoteResponse;
-import io.atomix.raft.session.RaftSession;
 import io.atomix.raft.storage.log.RaftLogReader;
 import io.atomix.raft.storage.log.RaftLogWriter;
 import io.atomix.raft.storage.log.entry.QueryEntry;
@@ -146,78 +136,6 @@ public class PassiveRole extends InactiveRole {
           .exceptionally(
               error ->
                   MetadataResponse.builder()
-                      .withStatus(RaftResponse.Status.ERROR)
-                      .withError(RaftError.Type.NO_LEADER)
-                      .build())
-          .thenApply(this::logResponse);
-    }
-  }
-
-  @Override
-  public CompletableFuture<OpenSessionResponse> onOpenSession(final OpenSessionRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              OpenSessionResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    } else {
-      return forward(request, raft.getProtocol()::openSession)
-          .exceptionally(
-              error ->
-                  OpenSessionResponse.builder()
-                      .withStatus(RaftResponse.Status.ERROR)
-                      .withError(RaftError.Type.NO_LEADER)
-                      .build())
-          .thenApply(this::logResponse);
-    }
-  }
-
-  @Override
-  public CompletableFuture<KeepAliveResponse> onKeepAlive(final KeepAliveRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              KeepAliveResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    } else {
-      return forward(request, raft.getProtocol()::keepAlive)
-          .exceptionally(
-              error ->
-                  KeepAliveResponse.builder()
-                      .withStatus(RaftResponse.Status.ERROR)
-                      .withError(RaftError.Type.NO_LEADER)
-                      .build())
-          .thenApply(this::logResponse);
-    }
-  }
-
-  @Override
-  public CompletableFuture<CloseSessionResponse> onCloseSession(final CloseSessionRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              CloseSessionResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    } else {
-      return forward(request, raft.getProtocol()::closeSession)
-          .exceptionally(
-              error ->
-                  CloseSessionResponse.builder()
                       .withStatus(RaftResponse.Status.ERROR)
                       .withError(RaftError.Type.NO_LEADER)
                       .build())
@@ -478,79 +396,6 @@ public class PassiveRole extends InactiveRole {
                 .withError(
                     RaftError.Type.ILLEGAL_MEMBER_STATE, "Cannot request vote from RESERVE member")
                 .build()));
-  }
-
-  @Override
-  public CompletableFuture<CommandResponse> onCommand(final CommandRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              CommandResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    } else {
-      return forward(request, raft.getProtocol()::command)
-          .exceptionally(
-              error ->
-                  CommandResponse.builder()
-                      .withStatus(RaftResponse.Status.ERROR)
-                      .withError(RaftError.Type.NO_LEADER)
-                      .build())
-          .thenApply(this::logResponse);
-    }
-  }
-
-  @Override
-  public CompletableFuture<QueryResponse> onQuery(final QueryRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    // If this server has not yet applied entries up to the client's session ID, forward the
-    // query to the leader. This ensures that a follower does not tell the client its session
-    // doesn't exist if the follower hasn't had a chance to see the session's registration entry.
-    if (raft.getState() != RaftContext.State.READY || raft.getLastApplied() < request.session()) {
-      log.trace("State out of sync, forwarding query to leader");
-      return queryForward(request);
-    }
-
-    // Look up the client's session.
-    final RaftSession session = raft.getSessions().getSession(request.session());
-    if (session == null) {
-      log.trace("State out of sync, forwarding query to leader");
-      return queryForward(request);
-    }
-
-    // If the session's consistency level is SEQUENTIAL, handle the request here, otherwise forward
-    // it.
-    if (session.readConsistency() == ReadConsistency.SEQUENTIAL) {
-
-      // If the commit index is not in the log then we've fallen too far behind the leader to
-      // perform a local query.
-      // Forward the request to the leader.
-      if (raft.getLogWriter().getLastIndex() < raft.getCommitIndex()) {
-        log.trace("State out of sync, forwarding query to leader");
-        return queryForward(request);
-      }
-
-      final Indexed<QueryEntry> entry =
-          new Indexed<>(
-              request.index(),
-              new QueryEntry(
-                  raft.getTerm(),
-                  System.currentTimeMillis(),
-                  request.session(),
-                  request.sequenceNumber(),
-                  request.operation()),
-              0);
-
-      return applyQuery(entry).thenApply(this::logResponse);
-    } else {
-      return queryForward(request);
-    }
   }
 
   private void abortPendingSnapshots() {

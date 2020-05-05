@@ -36,12 +36,7 @@ import io.atomix.raft.cluster.RaftMember;
 import io.atomix.raft.cluster.impl.DefaultRaftMember;
 import io.atomix.raft.cluster.impl.RaftClusterContext;
 import io.atomix.raft.metrics.RaftRoleMetrics;
-import io.atomix.raft.protocol.CloseSessionResponse;
-import io.atomix.raft.protocol.CommandResponse;
-import io.atomix.raft.protocol.KeepAliveResponse;
 import io.atomix.raft.protocol.MetadataResponse;
-import io.atomix.raft.protocol.OpenSessionResponse;
-import io.atomix.raft.protocol.QueryResponse;
 import io.atomix.raft.protocol.RaftResponse;
 import io.atomix.raft.protocol.RaftServerProtocol;
 import io.atomix.raft.protocol.TransferRequest;
@@ -228,15 +223,6 @@ public class RaftContext implements AutoCloseable {
 
   /** Registers server handlers on the configured protocol. */
   private void registerHandlers(final RaftServerProtocol protocol) {
-    protocol.registerOpenSessionHandler(
-        request ->
-            runOnContextIfReady(() -> role.onOpenSession(request), OpenSessionResponse::builder));
-    protocol.registerCloseSessionHandler(
-        request ->
-            runOnContextIfReady(() -> role.onCloseSession(request), CloseSessionResponse::builder));
-    protocol.registerKeepAliveHandler(
-        request ->
-            runOnContextIfReady(() -> role.onKeepAlive(request), KeepAliveResponse::builder));
     protocol.registerMetadataHandler(
         request -> runOnContextIfReady(() -> role.onMetadata(request), MetadataResponse::builder));
     protocol.registerConfigureHandler(request -> runOnContext(() -> role.onConfigure(request)));
@@ -248,10 +234,6 @@ public class RaftContext implements AutoCloseable {
     protocol.registerAppendHandler(request -> runOnContext(() -> role.onAppend(request)));
     protocol.registerPollHandler(request -> runOnContext(() -> role.onPoll(request)));
     protocol.registerVoteHandler(request -> runOnContext(() -> role.onVote(request)));
-    protocol.registerCommandHandler(
-        request -> runOnContextIfReady(() -> role.onCommand(request), CommandResponse::builder));
-    protocol.registerQueryHandler(
-        request -> runOnContextIfReady(() -> role.onQuery(request), QueryResponse::builder));
   }
 
   private <R extends RaftResponse> CompletableFuture<R> runOnContextIfReady(
