@@ -69,9 +69,6 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivating(final ExecutableServiceTask element, final BpmnElementContext context) {
-    // for all activities:
-    // input mappings
-    // subscribe to events
 
     // TODO (saig0): migrate to Either types
     final var success = variableMappingBehavior.applyInputMappings(context.toStepContext());
@@ -99,18 +96,11 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivated(final ExecutableServiceTask element, final BpmnElementContext context) {
-    // only for service task:
-    // evaluate job type expression
-    // evaluate job retries expression
-    // create job
-
-    // --> may be better done on activating
 
     final Either<Failure, String> optJobType =
         expressionBehavior.evaluateStringExpression(
             element.getType(), context.getElementInstanceKey());
 
-    // TODO (saig0): I want either.flapMap and consuming methods =)
     if (optJobType.isLeft()) {
       final var failure = optJobType.getLeft();
       incidentBehavior.createIncident(
@@ -132,10 +122,6 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
   @Override
   public void onCompleting(final ExecutableServiceTask element, final BpmnElementContext context) {
 
-    // for all activities:
-    // output mappings
-    // unsubscribe from events
-
     // TODO (saig0): extract guard check and perform also on other transitions
     final var flowScopeInstance = stateBehavior.getFlowScopeInstance(context);
     if (!flowScopeInstance.isActive()) {
@@ -151,18 +137,10 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
         context.getElementInstanceKey(), context.toStepContext());
 
     stateTransitionBehavior.transitionToCompleted(context);
-
-    // TODO (saig0): shutdown event scope? (sse AbstractHandler#transitionTo)
   }
 
   @Override
   public void onCompleted(final ExecutableServiceTask element, final BpmnElementContext context) {
-    // for all activities:
-    // take outgoing sequence flows
-    // complete scope if last active token
-    // consume token
-    // remove from event scope instance state
-    // remove from element instance state
 
     stateTransitionBehavior.takeOutgoingSequenceFlows(element, context);
 
@@ -172,12 +150,6 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onTerminating(final ExecutableServiceTask element, final BpmnElementContext context) {
-    // only for service task:
-    // cancel job
-    // resolve job incident
-
-    // for all activities:
-    // unsubscribe from events
 
     final var elementInstance = stateBehavior.getElementInstance(context);
     final long jobKey = elementInstance.getJobKey();
@@ -190,19 +162,16 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
         context.getElementInstanceKey(), context.toStepContext());
 
     stateTransitionBehavior.transitionToTerminated(context);
-
-    // TODO (saig0): shutdown event scope? (sse AbstractHandler#transitionTo)
   }
 
   @Override
   public void onTerminated(final ExecutableServiceTask element, final BpmnElementContext context) {
-    // for all activities:
-    // publish deferred events (i.e. an occurred boundary event)
+
     deferredRecordsBehavior.publishDeferredRecords(context);
 
-    // resolve incidents
     incidentBehavior.resolveIncidents(context);
 
+    // TODO (saig0): terminate flow scope in container
     // terminate scope if scope is terminated and last active token
     // publish deferred event if an interrupting event sub-process was triggered
     stateBehavior.terminateFlowScope(context); // interruption is part of this (still)
@@ -214,9 +183,8 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
   @Override
   public void onEventOccurred(
       final ExecutableServiceTask element, final BpmnElementContext context) {
-    // for all activities:
-    // (when boundary event is triggered)
 
+    // TODO (saig0): extract triggering a boundary event
     final EventTrigger event =
         context
             .toStepContext()

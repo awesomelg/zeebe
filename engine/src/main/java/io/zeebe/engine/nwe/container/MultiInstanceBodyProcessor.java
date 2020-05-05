@@ -72,6 +72,7 @@ public final class MultiInstanceBodyProcessor
       return;
     }
 
+    // TODO (saig0): handle exceptions on event subscribing
     eventSubscriptionBehavior.subscribeToEvents(context.toStepContext(), element);
 
     stateTransitionBehavior.transitionToActivated(context);

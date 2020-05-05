@@ -7,6 +7,8 @@
  */
 package io.zeebe.engine.nwe;
 
+import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
+
 import io.zeebe.engine.processor.SideEffectProducer;
 import io.zeebe.engine.processor.TypedRecord;
 import io.zeebe.engine.processor.TypedStreamWriter;
@@ -126,8 +128,31 @@ public final class BpmnElementContextImpl implements BpmnElementContext {
     stepContext.setStreamWriter(streamWriter);
     stepContext.getOutput().setStreamWriter(streamWriter);
 
-    // TODO (saig0): so message subscriptions are opened via side-effects
     stepContext.getSideEffect().clear();
     sideEffect.accept(stepContext.getSideEffect());
+  }
+
+  @Override
+  public String toString() {
+    return "{"
+        + "intent="
+        + intent
+        + ", elementId="
+        + bufferAsString(getElementId())
+        + ", bpmnElementType="
+        + getRecordValue().getBpmnElementType()
+        + ", elementInstanceKey="
+        + getElementInstanceKey()
+        + ", flowScopeKey="
+        + getFlowScopeKey()
+        + ", workflowInstanceKey="
+        + getWorkflowInstanceKey()
+        + ", bpmnProcessId="
+        + bufferAsString(getBpmnProcessId())
+        + ", workflowVersion="
+        + getWorkflowVersion()
+        + ", workflowKey="
+        + getWorkflowKey()
+        + '}';
   }
 }

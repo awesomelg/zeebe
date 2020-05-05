@@ -98,6 +98,8 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
 
     stateTransitionBehavior.onCompleted(element, context);
     stateBehavior.consumeToken(context);
+
+    // TODO (saig0): remove instance from state
   }
 
   @Override
@@ -111,6 +113,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
     // for all activities:
     // publish deferred events (i.e. an occurred boundary event)
+    // TODO (saig0): there can be no boundary event here
     deferredRecordsBehavior.publishDeferredRecords(context);
 
     // resolve incidents
@@ -122,6 +125,8 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
 
     // consume token
     stateBehavior.consumeToken(context);
+
+    // TODO (saig0): remove instance from state
   }
 
   @Override

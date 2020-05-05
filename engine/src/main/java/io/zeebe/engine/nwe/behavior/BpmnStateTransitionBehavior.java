@@ -42,6 +42,10 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToActivated(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATING) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_ACTIVATED, context);
+    }
+
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_ACTIVATED);
 
     // TODO (saig0): update state because of the step guards
@@ -51,6 +55,14 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToTerminating(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATING
+        && context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED
+        && context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING
+        && context.getIntent() != WorkflowInstanceIntent.EVENT_OCCURRED) {
+      throw new IllegalStateTransitionException(
+          WorkflowInstanceIntent.ELEMENT_TERMINATING, context);
+    }
+
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_TERMINATING);
 
     stateBehavior.updateElementInstance(
@@ -59,6 +71,10 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToTerminated(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_TERMINATING) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_TERMINATED, context);
+    }
+
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_TERMINATED);
 
     stateBehavior.updateElementInstance(
@@ -67,6 +83,10 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToCompleting(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETING, context);
+    }
+
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETING);
 
     stateBehavior.updateElementInstance(
@@ -75,6 +95,10 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToCompleted(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETED, context);
+    }
+
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETED);
 
     stateBehavior.updateElementInstance(
@@ -89,6 +113,10 @@ public final class BpmnStateTransitionBehavior {
 
   public void takeSequenceFlow(
       final BpmnElementContext context, final ExecutableSequenceFlow sequenceFlow) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETED) {
+      throw new IllegalStateTransitionException(
+          WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN, context);
+    }
 
     final var record =
         context
@@ -157,6 +185,17 @@ public final class BpmnStateTransitionBehavior {
             takeSequenceFlow(context, sequenceFlow);
             stateBehavior.spawnToken(context);
           });
+    }
+  }
+
+  private static final class IllegalStateTransitionException extends IllegalStateException {
+
+    private static final String MESSAGE =
+        "Expected to take transition to '%s' but element instance is in state '%s'. [context: %s]";
+
+    private IllegalStateTransitionException(
+        final WorkflowInstanceIntent transition, final BpmnElementContext context) {
+      super(String.format(MESSAGE, transition, context.getIntent(), context));
     }
   }
 }
