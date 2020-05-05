@@ -116,6 +116,15 @@ public interface Either<L, R> {
    */
   void ifRight(Consumer<R> action);
 
+  /**
+   * Performs the given action with the value if this is a {@link Left}, otherwise does nothing.
+   *
+   * @param action the consuming function for the left value
+   */
+  void ifLeft(Consumer<L> action);
+
+  void ifLeftOrRight(Consumer<L> leftAction, Consumer<R> rightAction);
+
   final class Right<L, R> implements Either<L, R> {
 
     private final R value;
@@ -159,6 +168,16 @@ public interface Either<L, R> {
     @Override
     public void ifRight(final Consumer<R> right) {
       right.accept(this.value);
+    }
+
+    @Override
+    public void ifLeft(final Consumer<L> action) {
+      // do nothing
+    }
+
+    @Override
+    public void ifLeftOrRight(final Consumer<L> leftAction, final Consumer<R> rightAction) {
+      rightAction.accept(this.value);
     }
 
     @Override
@@ -226,6 +245,16 @@ public interface Either<L, R> {
     @Override
     public void ifRight(final Consumer<R> right) {
       // do nothing
+    }
+
+    @Override
+    public void ifLeft(final Consumer<L> action) {
+      action.accept(this.value);
+    }
+
+    @Override
+    public void ifLeftOrRight(final Consumer<L> leftAction, final Consumer<R> rightAction) {
+      leftAction.accept(this.value);
     }
 
     @Override
