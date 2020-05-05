@@ -61,7 +61,6 @@ public class RaftServiceContext implements ServiceContext {
           return new LogicalTimestamp(currentIndex);
         }
       };
-  private Session currentSession;
   private long currentTimestamp;
   private final WallClock wallClock =
       new WallClock() {
