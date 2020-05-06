@@ -84,10 +84,6 @@
       <groupId>com.google.guava</groupId>
     </dependency>
     <dependency>
-      <artifactId>classgraph</artifactId>
-      <groupId>io.github.classgraph</groupId>
-    </dependency>
-    <dependency>
       <artifactId>simpleclient</artifactId>
       <groupId>io.prometheus</groupId>
     </dependency>

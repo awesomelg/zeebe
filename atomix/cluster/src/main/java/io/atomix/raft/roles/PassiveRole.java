@@ -16,11 +16,8 @@
  */
 package io.atomix.raft.roles;
 
-import io.atomix.primitive.PrimitiveException;
 import io.atomix.raft.RaftError;
-import io.atomix.raft.RaftException;
 import io.atomix.raft.RaftServer;
-import io.atomix.raft.impl.OperationResult;
 import io.atomix.raft.impl.RaftContext;
 import io.atomix.raft.metrics.SnapshotReplicationMetrics;
 import io.atomix.raft.protocol.AppendRequest;
@@ -31,13 +28,8 @@ import io.atomix.raft.protocol.JoinRequest;
 import io.atomix.raft.protocol.JoinResponse;
 import io.atomix.raft.protocol.LeaveRequest;
 import io.atomix.raft.protocol.LeaveResponse;
-import io.atomix.raft.protocol.MetadataRequest;
-import io.atomix.raft.protocol.MetadataResponse;
-import io.atomix.raft.protocol.OperationResponse;
 import io.atomix.raft.protocol.PollRequest;
 import io.atomix.raft.protocol.PollResponse;
-import io.atomix.raft.protocol.QueryRequest;
-import io.atomix.raft.protocol.QueryResponse;
 import io.atomix.raft.protocol.RaftResponse;
 import io.atomix.raft.protocol.ReconfigureRequest;
 import io.atomix.raft.protocol.ReconfigureResponse;
@@ -45,7 +37,6 @@ import io.atomix.raft.protocol.VoteRequest;
 import io.atomix.raft.protocol.VoteResponse;
 import io.atomix.raft.storage.log.RaftLogReader;
 import io.atomix.raft.storage.log.RaftLogWriter;
-import io.atomix.raft.storage.log.entry.QueryEntry;
 import io.atomix.raft.storage.log.entry.RaftLogEntry;
 import io.atomix.raft.storage.snapshot.PendingSnapshot;
 import io.atomix.raft.storage.snapshot.Snapshot;
@@ -57,7 +48,6 @@ import io.atomix.utils.concurrent.ThreadContext;
 import io.atomix.utils.time.WallClockTimestamp;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import org.slf4j.Logger;
 
 /** Passive state. */
@@ -117,30 +107,6 @@ public class PassiveRole extends InactiveRole {
   @Override
   public RaftServer.Role role() {
     return RaftServer.Role.PASSIVE;
-  }
-
-  @Override
-  public CompletableFuture<MetadataResponse> onMetadata(final MetadataRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              MetadataResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    } else {
-      return forward(request, raft.getProtocol()::metadata)
-          .exceptionally(
-              error ->
-                  MetadataResponse.builder()
-                      .withStatus(RaftResponse.Status.ERROR)
-                      .withError(RaftError.Type.NO_LEADER)
-                      .build())
-          .thenApply(this::logResponse);
-    }
   }
 
   @Override
@@ -419,97 +385,6 @@ public class PassiveRole extends InactiveRole {
       log.error(
           "Failed to purge pending snapshots, which may result in unnecessary disk usage and should be monitored",
           e);
-    }
-  }
-
-  /** Forwards the query to the leader. */
-  private CompletableFuture<QueryResponse> queryForward(final QueryRequest request) {
-    if (raft.getLeader() == null) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              QueryResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.NO_LEADER)
-                  .build()));
-    }
-
-    log.trace("Forwarding {}", request);
-    return forward(request, raft.getProtocol()::query)
-        .exceptionally(
-            error ->
-                QueryResponse.builder()
-                    .withStatus(RaftResponse.Status.ERROR)
-                    .withError(RaftError.Type.NO_LEADER)
-                    .build())
-        .thenApply(this::logResponse);
-  }
-
-  /** Applies a query to the state machine. */
-  protected CompletableFuture<QueryResponse> applyQuery(final Indexed<QueryEntry> entry) {
-    // In the case of the leader, the state machine is always up to date, so no queries will be
-    // queued and all query
-    // indexes will be the last applied index.
-    final CompletableFuture<QueryResponse> future = new CompletableFuture<>();
-    raft.getServiceManager()
-        .<OperationResult>apply(entry)
-        .whenComplete(
-            (result, error) -> {
-              completeOperation(result, QueryResponse.builder(), error, future);
-            });
-    return future;
-  }
-
-  /** Completes an operation. */
-  protected <T extends OperationResponse> void completeOperation(
-      final OperationResult result,
-      final OperationResponse.Builder<?, T> builder,
-      Throwable error,
-      final CompletableFuture<T> future) {
-    if (result != null) {
-      builder.withIndex(result.index());
-      builder.withEventIndex(result.eventIndex());
-      if (result.failed()) {
-        error = result.error();
-      }
-    }
-
-    if (error == null) {
-      if (result == null) {
-        future.complete(
-            builder
-                .withStatus(RaftResponse.Status.ERROR)
-                .withError(RaftError.Type.PROTOCOL_ERROR)
-                .build());
-      } else {
-        future.complete(
-            builder.withStatus(RaftResponse.Status.OK).withResult(result.result()).build());
-      }
-    } else if (error instanceof CompletionException && error.getCause() instanceof RaftException) {
-      future.complete(
-          builder
-              .withStatus(RaftResponse.Status.ERROR)
-              .withError(((RaftException) error.getCause()).getType(), error.getMessage())
-              .build());
-    } else if (error instanceof RaftException) {
-      future.complete(
-          builder
-              .withStatus(RaftResponse.Status.ERROR)
-              .withError(((RaftException) error).getType(), error.getMessage())
-              .build());
-    } else if (error instanceof PrimitiveException.ServiceException) {
-      log.warn("An application error occurred: {}", error.getCause());
-      future.complete(
-          builder
-              .withStatus(RaftResponse.Status.ERROR)
-              .withError(RaftError.Type.APPLICATION_ERROR)
-              .build());
-    } else {
-      log.warn("An unexpected error occurred: {}", error);
-      future.complete(
-          builder
-              .withStatus(RaftResponse.Status.ERROR)
-              .withError(RaftError.Type.PROTOCOL_ERROR, error.getMessage())
-              .build());
     }
   }
 
@@ -853,11 +728,6 @@ public class PassiveRole extends InactiveRole {
                 .withLastSnapshotIndex(raft.getSnapshotStore().getCurrentSnapshotIndex())
                 .build()));
     return succeeded;
-  }
-
-  /** Performs a local query. */
-  protected CompletableFuture<QueryResponse> queryLocal(final Indexed<QueryEntry> entry) {
-    return applyQuery(entry);
   }
 
   private static final class ResetWriterSnapshotListener implements SnapshotListener {

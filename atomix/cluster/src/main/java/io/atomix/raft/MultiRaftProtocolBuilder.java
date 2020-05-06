@@ -17,11 +17,7 @@
 package io.atomix.raft;
 
 import io.atomix.primitive.Recovery;
-import io.atomix.primitive.partition.Partitioner;
 import io.atomix.primitive.protocol.PrimitiveProtocolBuilder;
-import io.atomix.raft.session.CommunicationStrategy;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 /** Multi-Raft protocol builder. */
 public class MultiRaftProtocolBuilder
@@ -30,62 +26,6 @@ public class MultiRaftProtocolBuilder
 
   protected MultiRaftProtocolBuilder(final MultiRaftProtocolConfig config) {
     super(config);
-  }
-
-  /**
-   * Sets the protocol partitioner.
-   *
-   * @param partitioner the protocol partitioner
-   * @return the protocol builder
-   */
-  public MultiRaftProtocolBuilder withPartitioner(final Partitioner<String> partitioner) {
-    config.setPartitioner(partitioner);
-    return this;
-  }
-
-  /**
-   * Sets the minimum session timeout.
-   *
-   * @param minTimeout the minimum session timeout
-   * @return the Raft protocol builder
-   */
-  public MultiRaftProtocolBuilder withMinTimeout(final Duration minTimeout) {
-    config.setMinTimeout(minTimeout);
-    return this;
-  }
-
-  /**
-   * Sets the maximum session timeout.
-   *
-   * @param maxTimeout the maximum session timeout
-   * @return the Raft protocol builder
-   */
-  public MultiRaftProtocolBuilder withMaxTimeout(final Duration maxTimeout) {
-    config.setMaxTimeout(maxTimeout);
-    return this;
-  }
-
-  /**
-   * Sets the read consistency level.
-   *
-   * @param readConsistency the read consistency level
-   * @return the Raft protocol builder
-   */
-  public MultiRaftProtocolBuilder withReadConsistency(final ReadConsistency readConsistency) {
-    config.setReadConsistency(readConsistency);
-    return this;
-  }
-
-  /**
-   * Sets the communication strategy.
-   *
-   * @param communicationStrategy the communication strategy
-   * @return the Raft protocol builder
-   */
-  public MultiRaftProtocolBuilder withCommunicationStrategy(
-      final CommunicationStrategy communicationStrategy) {
-    config.setCommunicationStrategy(communicationStrategy);
-    return this;
   }
 
   /**
@@ -108,40 +48,6 @@ public class MultiRaftProtocolBuilder
   public MultiRaftProtocolBuilder withMaxRetries(final int maxRetries) {
     config.setMaxRetries(maxRetries);
     return this;
-  }
-
-  /**
-   * Sets the operation retry delay.
-   *
-   * @param retryDelayMillis the delay between operation retries in milliseconds
-   * @return the proxy builder
-   */
-  public MultiRaftProtocolBuilder withRetryDelayMillis(final long retryDelayMillis) {
-    return withRetryDelay(Duration.ofMillis(retryDelayMillis));
-  }
-
-  /**
-   * Sets the operation retry delay.
-   *
-   * @param retryDelay the delay between operation retries
-   * @return the proxy builder
-   * @throws NullPointerException if the delay is null
-   */
-  public MultiRaftProtocolBuilder withRetryDelay(final Duration retryDelay) {
-    config.setRetryDelay(retryDelay);
-    return this;
-  }
-
-  /**
-   * Sets the operation retry delay.
-   *
-   * @param retryDelay the delay between operation retries
-   * @param timeUnit the delay time unit
-   * @return the proxy builder
-   * @throws NullPointerException if the time unit is null
-   */
-  public MultiRaftProtocolBuilder withRetryDelay(final long retryDelay, final TimeUnit timeUnit) {
-    return withRetryDelay(Duration.ofMillis(timeUnit.toMillis(retryDelay)));
   }
 
   @Override

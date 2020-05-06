@@ -17,11 +17,7 @@
 package io.atomix.raft.roles;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Sets;
-import io.atomix.cluster.ClusterMembershipEvent;
-import io.atomix.cluster.ClusterMembershipEventListener;
 import io.atomix.cluster.MemberId;
-import io.atomix.primitive.session.SessionId;
 import io.atomix.raft.RaftError;
 import io.atomix.raft.RaftException;
 import io.atomix.raft.RaftServer;
@@ -29,23 +25,16 @@ import io.atomix.raft.RaftServer.Role;
 import io.atomix.raft.cluster.RaftMember;
 import io.atomix.raft.cluster.impl.DefaultRaftMember;
 import io.atomix.raft.cluster.impl.RaftMemberContext;
-import io.atomix.raft.impl.MetadataResult;
 import io.atomix.raft.impl.OperationResult;
-import io.atomix.raft.impl.PendingCommand;
 import io.atomix.raft.impl.RaftContext;
 import io.atomix.raft.protocol.AppendRequest;
 import io.atomix.raft.protocol.AppendResponse;
-import io.atomix.raft.protocol.CommandRequest;
-import io.atomix.raft.protocol.CommandResponse;
 import io.atomix.raft.protocol.JoinRequest;
 import io.atomix.raft.protocol.JoinResponse;
 import io.atomix.raft.protocol.LeaveRequest;
 import io.atomix.raft.protocol.LeaveResponse;
-import io.atomix.raft.protocol.MetadataRequest;
-import io.atomix.raft.protocol.MetadataResponse;
 import io.atomix.raft.protocol.PollRequest;
 import io.atomix.raft.protocol.PollResponse;
-import io.atomix.raft.protocol.QueryResponse;
 import io.atomix.raft.protocol.RaftResponse;
 import io.atomix.raft.protocol.ReconfigureRequest;
 import io.atomix.raft.protocol.ReconfigureResponse;
@@ -53,13 +42,8 @@ import io.atomix.raft.protocol.TransferRequest;
 import io.atomix.raft.protocol.TransferResponse;
 import io.atomix.raft.protocol.VoteRequest;
 import io.atomix.raft.protocol.VoteResponse;
-import io.atomix.raft.session.RaftSession;
-import io.atomix.raft.storage.log.entry.CloseSessionEntry;
-import io.atomix.raft.storage.log.entry.CommandEntry;
 import io.atomix.raft.storage.log.entry.ConfigurationEntry;
 import io.atomix.raft.storage.log.entry.InitializeEntry;
-import io.atomix.raft.storage.log.entry.MetadataEntry;
-import io.atomix.raft.storage.log.entry.QueryEntry;
 import io.atomix.raft.storage.log.entry.RaftLogEntry;
 import io.atomix.raft.storage.snapshot.SnapshotListener;
 import io.atomix.raft.storage.system.Configuration;
@@ -73,21 +57,16 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 /** Leader state. */
 public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
 
-  private static final int MAX_PENDING_COMMANDS = 1000;
   private static final int MAX_APPEND_ATTEMPTS = 5;
   private final LeaderAppender appender;
-  private final Set<SessionId> expiring = Sets.newHashSet();
-  private final ClusterMembershipEventListener clusterListener = this::handleClusterEvent;
   private Scheduled appendTimer;
   private long configuring;
-  private boolean transferring;
   private CompletableFuture<Void> commitInitialEntriesFuture;
 
   public LeaderRole(final RaftContext context) {
@@ -107,9 +86,6 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
     // Commit the initial leader entries.
     commitInitialEntriesFuture = commitInitialEntries();
 
-    // Register the cluster event listener.
-    raft.getMembershipService().addListener(clusterListener);
-
     return super.start().thenRun(this::startTimers).thenApply(v -> this);
   }
 
@@ -120,60 +96,15 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
 
   @Override
   public synchronized CompletableFuture<Void> stop() {
-    raft.getMembershipService().removeListener(clusterListener);
     return super.stop()
         .thenRun(appender::close)
         .thenRun(this::cancelTimers)
-        .thenRun(this::stepDown)
-        .thenRun(this::failPendingCommands);
+        .thenRun(this::stepDown);
   }
 
   @Override
   public RaftServer.Role role() {
     return RaftServer.Role.LEADER;
-  }
-
-  @Override
-  public CompletableFuture<MetadataResponse> onMetadata(final MetadataRequest request) {
-    raft.checkThread();
-    logRequest(request);
-
-    if (transferring) {
-      return CompletableFuture.completedFuture(
-          logResponse(
-              MetadataResponse.builder()
-                  .withStatus(RaftResponse.Status.ERROR)
-                  .withError(RaftError.Type.ILLEGAL_MEMBER_STATE)
-                  .build()));
-    }
-
-    final CompletableFuture<MetadataResponse> future = new CompletableFuture<>();
-    final Indexed<MetadataEntry> entry =
-        new Indexed<>(
-            raft.getLastApplied(),
-            new MetadataEntry(raft.getTerm(), System.currentTimeMillis(), request.session()),
-            0);
-    raft.getServiceManager()
-        .<MetadataResult>apply(entry)
-        .whenComplete(
-            (result, error) -> {
-              if (error == null) {
-                future.complete(
-                    logResponse(
-                        MetadataResponse.builder()
-                            .withStatus(RaftResponse.Status.OK)
-                            .withSessions(result.sessions())
-                            .build()));
-              } else {
-                future.complete(
-                    logResponse(
-                        MetadataResponse.builder()
-                            .withStatus(RaftResponse.Status.ERROR)
-                            .withError(RaftError.Type.PROTOCOL_ERROR)
-                            .build()));
-              }
-            });
-    return future;
   }
 
   @Override
@@ -396,62 +327,6 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
     }
   }
 
-  /** Fails pending commands. */
-  private void failPendingCommands() {
-    for (final RaftSession session : raft.getSessions().getSessions()) {
-      for (final PendingCommand command : session.clearCommands()) {
-        command
-            .future()
-            .complete(
-                logResponse(
-                    CommandResponse.builder()
-                        .withStatus(RaftResponse.Status.ERROR)
-                        .withError(
-                            RaftError.Type.COMMAND_FAILURE,
-                            "Request sequence number "
-                                + command.request().sequenceNumber()
-                                + " out of sequence")
-                        .withLastSequence(session.getRequestSequence())
-                        .build()));
-      }
-    }
-  }
-
-  /**
-   * Executes a bounded linearizable query.
-   *
-   * <p>Bounded linearizable queries succeed as long as this server remains the leader. This is
-   * possible since the leader will step down in the event it fails to contact a majority of the
-   * cluster.
-   */
-  private CompletableFuture<QueryResponse> queryBoundedLinearizable(
-      final Indexed<QueryEntry> entry) {
-    return applyQuery(entry);
-  }
-
-  /**
-   * Executes a linearizable query.
-   *
-   * <p>Linearizable queries are first sequenced with commands and then applied to the state
-   * machine. Once applied, we verify the node's leadership prior to responding successfully to the
-   * query.
-   */
-  private CompletableFuture<QueryResponse> queryLinearizable(final Indexed<QueryEntry> entry) {
-    return applyQuery(entry)
-        .thenComposeAsync(
-            response ->
-                appender
-                    .appendEntries()
-                    .thenApply(index -> response)
-                    .exceptionally(
-                        error ->
-                            QueryResponse.builder()
-                                .withStatus(RaftResponse.Status.ERROR)
-                                .withError(RaftError.Type.QUERY_FAILURE, error.getMessage())
-                                .build()),
-            raft.getThreadContext());
-  }
-
   /** Sets the current node as the cluster leader. */
   private void takeLeadership() {
     raft.setLeader(raft.getCluster().getMember().memberId());
@@ -511,59 +386,6 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
     raft.checkThread();
     if (isRunning()) {
       appender.appendEntries();
-    }
-  }
-
-  /** Handles a cluster event. */
-  private void handleClusterEvent(final ClusterMembershipEvent event) {
-    raft.getThreadContext()
-        .execute(
-            () -> {
-              if (event.type() == ClusterMembershipEvent.Type.MEMBER_REMOVED) {
-                log.debug("Node {} deactivated", event.subject().id());
-                raft.getSessions().getSessions().stream()
-                    .filter(session -> session.memberId().equals(event.subject().id()))
-                    .forEach(this::expireSession);
-              }
-            });
-  }
-
-  /** Expires the given session. */
-  private void expireSession(final RaftSession session) {
-    if (expiring.add(session.sessionId())) {
-      log.debug("Expiring session due to heartbeat failure: {}", session);
-      append(
-              new CloseSessionEntry(
-                  raft.getTerm(),
-                  System.currentTimeMillis(),
-                  session.sessionId().id(),
-                  true,
-                  false))
-          .whenComplete(
-              (entry, error) -> {
-                if (error != null) {
-                  expiring.remove(session.sessionId());
-                  return;
-                }
-
-                appender
-                    .appendEntries(entry.index())
-                    .whenComplete(
-                        (commitIndex, commitError) -> {
-                          raft.checkThread();
-                          if (isRunning()) {
-                            if (commitError == null) {
-                              raft.getServiceManager()
-                                  .<Long>apply(entry.index())
-                                  .whenCompleteAsync(
-                                      (r, e) -> expiring.remove(session.sessionId()),
-                                      raft.getThreadContext());
-                            } else {
-                              expiring.remove(session.sessionId());
-                            }
-                          }
-                        });
-              });
     }
   }
 
@@ -637,8 +459,6 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
                   .withError(RaftError.Type.ILLEGAL_MEMBER_STATE)
                   .build()));
     }
-
-    transferring = true;
 
     final CompletableFuture<TransferResponse> future = new CompletableFuture<>();
     appender
@@ -750,103 +570,6 @@ public final class LeaderRole extends ActiveRole implements ZeebeLogAppender {
                   .withVoted(false)
                   .build()));
     }
-  }
-
-  /**
-   * Sequentially drains pending commands from the session's command request queue.
-   *
-   * @param session the session for which to drain commands
-   */
-  private void drainCommands(final long sequenceNumber, final RaftSession session) {
-    // First we need to drain any commands that exist in the queue *prior* to the next sequence
-    // number. This is
-    // possible if commands from the prior term are committed after a leader change.
-    long nextSequence = session.nextRequestSequence();
-    for (long i = sequenceNumber; i < nextSequence; i++) {
-      final PendingCommand nextCommand = session.removeCommand(i);
-      if (nextCommand != null) {
-        commitCommand(nextCommand.request(), nextCommand.future());
-      }
-    }
-
-    // Finally, drain any commands that are sequenced in the session.
-    PendingCommand nextCommand = session.removeCommand(nextSequence);
-    while (nextCommand != null) {
-      commitCommand(nextCommand.request(), nextCommand.future());
-      session.setRequestSequence(nextSequence);
-      nextSequence = session.nextRequestSequence();
-      nextCommand = session.removeCommand(nextSequence);
-    }
-  }
-
-  /**
-   * Commits a command.
-   *
-   * @param request the command request
-   * @param future the command response future
-   */
-  private void commitCommand(
-      final CommandRequest request, final CompletableFuture<CommandResponse> future) {
-    final long term = raft.getTerm();
-    final long timestamp = System.currentTimeMillis();
-
-    final CommandEntry command =
-        new CommandEntry(
-            term, timestamp, request.session(), request.sequenceNumber(), request.operation());
-    append(command)
-        .whenComplete(
-            (entry, error) -> {
-              if (error != null) {
-                final Throwable cause = Throwables.getRootCause(error);
-                if (Throwables.getRootCause(error) instanceof StorageException.TooLarge) {
-                  log.warn("Failed to append command {}", command, cause);
-                  future.complete(
-                      CommandResponse.builder()
-                          .withStatus(RaftResponse.Status.ERROR)
-                          .withError(RaftError.Type.PROTOCOL_ERROR)
-                          .build());
-                } else {
-                  future.complete(
-                      CommandResponse.builder()
-                          .withStatus(RaftResponse.Status.ERROR)
-                          .withError(RaftError.Type.COMMAND_FAILURE)
-                          .build());
-                }
-                return;
-              }
-
-              // Replicate the command to followers.
-              appender
-                  .appendEntries(entry.index())
-                  .whenComplete(
-                      (commitIndex, commitError) -> {
-                        raft.checkThread();
-                        if (isRunning()) {
-                          // If the command was successfully committed, apply it to the state
-                          // machine.
-                          if (commitError == null) {
-                            raft.getServiceManager()
-                                .<OperationResult>apply(entry.index())
-                                .whenComplete(
-                                    (r, e) -> {
-                                      completeOperation(r, CommandResponse.builder(), e, future);
-                                    });
-                          } else {
-                            future.complete(
-                                CommandResponse.builder()
-                                    .withStatus(RaftResponse.Status.ERROR)
-                                    .withError(RaftError.Type.COMMAND_FAILURE)
-                                    .build());
-                          }
-                        } else {
-                          future.complete(
-                              CommandResponse.builder()
-                                  .withStatus(RaftResponse.Status.ERROR)
-                                  .withError(RaftError.Type.COMMAND_FAILURE)
-                                  .build());
-                        }
-                      });
-            });
   }
 
   /**

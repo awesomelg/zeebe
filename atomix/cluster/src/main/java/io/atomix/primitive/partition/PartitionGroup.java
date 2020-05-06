@@ -18,7 +18,6 @@ package io.atomix.primitive.partition;
 
 import com.google.common.hash.Hashing;
 import io.atomix.primitive.protocol.PrimitiveProtocol;
-import io.atomix.primitive.protocol.ProxyProtocol;
 import io.atomix.utils.ConfiguredType;
 import io.atomix.utils.config.Configured;
 import io.atomix.utils.serializer.Namespace;
@@ -49,13 +48,6 @@ public interface PartitionGroup extends Configured<PartitionGroupConfig> {
    * @return the primitive protocol type supported by the partition group
    */
   PrimitiveProtocol.Type protocol();
-
-  /**
-   * Returns a new primitive protocol.
-   *
-   * @return a new primitive protocol
-   */
-  ProxyProtocol newProtocol();
 
   /**
    * Returns a partition by ID.

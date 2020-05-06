@@ -29,8 +29,6 @@ import io.atomix.raft.protocol.JoinRequest;
 import io.atomix.raft.protocol.JoinResponse;
 import io.atomix.raft.protocol.LeaveRequest;
 import io.atomix.raft.protocol.LeaveResponse;
-import io.atomix.raft.protocol.MetadataRequest;
-import io.atomix.raft.protocol.MetadataResponse;
 import io.atomix.raft.protocol.PollRequest;
 import io.atomix.raft.protocol.PollResponse;
 import io.atomix.raft.protocol.RaftResponse;
@@ -55,17 +53,6 @@ public class InactiveRole extends AbstractRole {
   @Override
   public RaftServer.Role role() {
     return RaftServer.Role.INACTIVE;
-  }
-
-  @Override
-  public CompletableFuture<MetadataResponse> onMetadata(final MetadataRequest request) {
-    logRequest(request);
-    return Futures.completedFuture(
-        logResponse(
-            MetadataResponse.builder()
-                .withStatus(Status.ERROR)
-                .withError(RaftError.Type.UNAVAILABLE)
-                .build()));
   }
 
   @Override

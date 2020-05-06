@@ -20,8 +20,6 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import io.atomix.cluster.MemberId;
-import io.atomix.primitive.impl.ClasspathScanningPrimitiveTypeRegistry;
-import io.atomix.primitive.service.PrimitiveService;
 import io.atomix.raft.RaftRoleChangeListener;
 import io.atomix.raft.RaftServer;
 import io.atomix.raft.cluster.RaftCluster;
@@ -41,7 +39,6 @@ import org.slf4j.Logger;
  * Provides a standalone implementation of the <a href="http://raft.github.io/">Raft consensus
  * algorithm</a>.
  *
- * @see PrimitiveService
  * @see RaftStorage
  */
 public class DefaultRaftServer implements RaftServer {
@@ -288,15 +285,6 @@ public class DefaultRaftServer implements RaftServer {
           ContextualLoggerFactory.getLogger(
               RaftServer.class, LoggerContext.builder(RaftServer.class).addValue(name).build());
 
-      if (primitiveTypes == null) {
-        primitiveTypes =
-            new ClasspathScanningPrimitiveTypeRegistry(
-                Thread.currentThread().getContextClassLoader());
-      }
-      if (primitiveTypes.getPrimitiveTypes().isEmpty()) {
-        throw new IllegalStateException("No primitive services registered");
-      }
-
       // If the server name is null, set it to the member ID.
       if (name == null) {
         name = localMemberId.id();
@@ -328,14 +316,12 @@ public class DefaultRaftServer implements RaftServer {
               membershipService,
               protocol,
               storage,
-              primitiveTypes,
               threadContextFactory,
               closeOnStop,
               stateMachineFactory,
               loadMonitorFactory);
       raft.setElectionTimeout(electionTimeout);
       raft.setHeartbeatInterval(heartbeatInterval);
-      raft.setSessionTimeout(sessionTimeout);
 
       return new DefaultRaftServer(raft);
     }

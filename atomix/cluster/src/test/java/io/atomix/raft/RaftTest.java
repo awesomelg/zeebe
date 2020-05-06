@@ -31,35 +31,22 @@ import static org.mockito.Mockito.verify;
 import com.google.common.collect.Maps;
 import io.atomix.cluster.ClusterMembershipService;
 import io.atomix.cluster.MemberId;
-import io.atomix.primitive.operation.OperationType;
-import io.atomix.primitive.operation.PrimitiveOperation;
-import io.atomix.primitive.operation.impl.DefaultOperationId;
 import io.atomix.raft.RaftServer.Role;
 import io.atomix.raft.cluster.RaftClusterEvent;
 import io.atomix.raft.cluster.RaftMember;
-import io.atomix.raft.cluster.impl.DefaultRaftMember;
 import io.atomix.raft.metrics.RaftRoleMetrics;
 import io.atomix.raft.partition.impl.RaftNamespaces;
 import io.atomix.raft.primitive.TestMember;
-import io.atomix.raft.primitive.TestPrimitive;
 import io.atomix.raft.protocol.TestRaftProtocolFactory;
 import io.atomix.raft.protocol.TestRaftServerProtocol;
 import io.atomix.raft.roles.LeaderRole;
 import io.atomix.raft.storage.RaftStorage;
 import io.atomix.raft.storage.log.RaftLogReader;
-import io.atomix.raft.storage.log.entry.CloseSessionEntry;
-import io.atomix.raft.storage.log.entry.CommandEntry;
-import io.atomix.raft.storage.log.entry.ConfigurationEntry;
 import io.atomix.raft.storage.log.entry.InitializeEntry;
-import io.atomix.raft.storage.log.entry.KeepAliveEntry;
-import io.atomix.raft.storage.log.entry.MetadataEntry;
-import io.atomix.raft.storage.log.entry.OpenSessionEntry;
-import io.atomix.raft.storage.log.entry.QueryEntry;
 import io.atomix.raft.storage.log.entry.RaftLogEntry;
 import io.atomix.raft.storage.snapshot.Snapshot;
 import io.atomix.raft.storage.snapshot.SnapshotChunk;
 import io.atomix.raft.storage.snapshot.SnapshotChunkReader;
-import io.atomix.raft.storage.system.Configuration;
 import io.atomix.raft.zeebe.ZeebeEntry;
 import io.atomix.raft.zeebe.ZeebeLogAppender;
 import io.atomix.storage.StorageLevel;
@@ -67,19 +54,15 @@ import io.atomix.storage.journal.Indexed;
 import io.atomix.storage.journal.JournalReader.Mode;
 import io.atomix.utils.concurrent.SingleThreadContext;
 import io.atomix.utils.concurrent.ThreadContext;
-import io.atomix.utils.serializer.Namespace;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -87,7 +70,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import net.jodah.concurrentunit.ConcurrentTestCase;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
@@ -103,36 +85,10 @@ import org.slf4j.LoggerFactory;
 public class RaftTest extends ConcurrentTestCase {
 
   public static AtomicLong snapshots = new AtomicLong(0);
-  private static final Namespace NAMESPACE =
-      Namespace.builder()
-          .register(CloseSessionEntry.class)
-          .register(CommandEntry.class)
-          .register(ConfigurationEntry.class)
-          .register(InitializeEntry.class)
-          .register(KeepAliveEntry.class)
-          .register(MetadataEntry.class)
-          .register(OpenSessionEntry.class)
-          .register(QueryEntry.class)
-          .register(PrimitiveOperation.class)
-          .register(DefaultOperationId.class)
-          .register(OperationType.class)
-          .register(ReadConsistency.class)
-          .register(ArrayList.class)
-          .register(HashSet.class)
-          .register(DefaultRaftMember.class)
-          .register(MemberId.class)
-          .register(RaftMember.Type.class)
-          .register(Instant.class)
-          .register(Configuration.class)
-          .register(byte[].class)
-          .register(long[].class)
-          .build();
-
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   protected volatile int nextId;
   protected volatile List<RaftMember> members;
-  protected volatile List<RaftClient> clients = new ArrayList<>();
   protected volatile List<RaftServer> servers = new ArrayList<>();
   protected volatile TestRaftProtocolFactory protocolFactory;
   protected volatile ThreadContext context;
@@ -143,15 +99,6 @@ public class RaftTest extends ConcurrentTestCase {
   @After
   public void clearTests() throws Exception {
     snapshots = new AtomicLong(0);
-    clients.forEach(
-        c -> {
-          try {
-            c.close().get(10, TimeUnit.SECONDS);
-          } catch (final Exception e) {
-            // its fine..
-          }
-        });
-
     servers.forEach(
         s -> {
           try {
@@ -171,7 +118,6 @@ public class RaftTest extends ConcurrentTestCase {
 
     members = new ArrayList<>();
     nextId = 0;
-    clients = new ArrayList<>();
     servers = new ArrayList<>();
     context = new SingleThreadContext("raft-test-messaging-%d");
     protocolFactory = new TestRaftProtocolFactory(context);
@@ -962,35 +908,6 @@ public class RaftTest extends ConcurrentTestCase {
     storage.deleteSnapshotStore();
     storage.deleteLog();
     storage.deleteMetaStore();
-  }
-
-  private void fillSegment(final TestPrimitive primitive)
-      throws InterruptedException, ExecutionException, TimeoutException {
-
-    final String entry = RandomStringUtils.randomAscii(1024);
-    IntStream.range(0, 10).forEach(i -> primitive.write(entry).whenComplete((v, t) -> resume()));
-    await(10_000, 10);
-  }
-
-  private RaftMember createMember() {
-    final RaftMember member = nextMember(RaftMember.Type.ACTIVE);
-    members.add(member);
-
-    return member;
-  }
-
-  private void startCluster(final Map<MemberId, RaftServer> servers)
-      throws TimeoutException, InterruptedException {
-    final List<MemberId> members = new ArrayList<>(servers.keySet());
-    for (final RaftServer s : servers.values()) {
-      s.bootstrap(members).thenRun(this::resume);
-    }
-
-    await(30000 * servers.size(), servers.size());
-  }
-
-  private RaftServer createServer(final Map.Entry<MemberId, RaftStorage> entry) {
-    return createServer(entry.getKey(), b -> b.withStorage(entry.getValue()));
   }
 
   private void waitUntil(final BooleanSupplier condition, int retries) {
