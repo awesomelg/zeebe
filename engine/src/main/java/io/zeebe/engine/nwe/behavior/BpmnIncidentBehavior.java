@@ -8,6 +8,7 @@
 package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.nwe.BpmnElementContext;
+import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.TypedStreamWriter;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.instance.ElementInstanceState;
@@ -39,6 +40,11 @@ public final class BpmnIncidentBehavior {
       final IncidentRecord incidentRecord = incidentState.getIncidentRecord(incidentKey);
       streamWriter.appendFollowUpEvent(incidentKey, IncidentIntent.RESOLVED, incidentRecord);
     }
+  }
+
+  public void createIncident(
+      final Failure failure, final BpmnElementContext context, final long variableScopeKey) {
+    createIncident(failure.getErrorType(), failure.getMessage(), context, variableScopeKey);
   }
 
   public void createIncident(

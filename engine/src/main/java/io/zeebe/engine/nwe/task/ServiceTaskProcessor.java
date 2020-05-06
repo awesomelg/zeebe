@@ -103,9 +103,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
             jobType -> expressionBehavior.evaluateLongExpression(element.getRetries(), scopeKey))
         .ifRightOrLeft(
             retries -> createNewJob(context, element, jobTypeOrFailure.get(), retries.intValue()),
-            failure ->
-                incidentBehavior.createIncident(
-                    ErrorType.EXTRACT_VALUE_ERROR, failure.getMessage(), context, scopeKey));
+            failure -> incidentBehavior.createIncident(failure, context, scopeKey));
   }
 
   @Override

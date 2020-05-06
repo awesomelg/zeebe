@@ -75,20 +75,9 @@ public final class ExpressionProcessor {
    */
   public Either<Failure, String> evaluateStringExpression(
       final Expression expression, final long scopeKey) {
-    final var evaluationResult = evaluateExpression(expression, scopeKey);
-    if (evaluationResult.isFailure()) {
-      return Either.left(new Failure(evaluationResult.getFailureMessage()));
-    }
-    if (!evaluationResult.getType().equals(ResultType.STRING)) {
-      return Either.left(
-          new Failure(
-              String.format(
-                  "Expected result of the expression '%s' to be '%s', but was '%s'.",
-                  evaluationResult.getExpression(),
-                  ResultType.STRING,
-                  evaluationResult.getType())));
-    }
-    return Either.right(evaluationResult.getString());
+    return evaluateExpressionAsEither(expression, scopeKey)
+        .flatMap(result -> typeCheck(result, ResultType.STRING))
+        .map(EvaluationResult::getString);
   }
 
   /**
@@ -110,6 +99,15 @@ public final class ExpressionProcessor {
         .map(Number::longValue);
   }
 
+  /**
+   * Evaluates the given expression and returns the result as long. If the evaluation fails or the
+   * result is not a number then a failure is returned.
+   *
+   * @param expression the expression to evaluate
+   * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
+   *     empty variable context)
+   * @return either the evaluation result as long, or a failure
+   */
   public Either<Failure, Long> evaluateLongExpression(
       final Expression expression, final long scopeKey) {
     return evaluateExpressionAsEither(expression, scopeKey)
@@ -133,6 +131,22 @@ public final class ExpressionProcessor {
     return failureCheck(evaluationResult, ErrorType.EXTRACT_VALUE_ERROR, context)
         .flatMap(
             result -> typeCheck(result, ResultType.BOOLEAN, ErrorType.EXTRACT_VALUE_ERROR, context))
+        .map(EvaluationResult::getBoolean);
+  }
+
+  /**
+   * Evaluates the given expression and returns the result as boolean. If the evaluation fails or
+   * the result is not a boolean then a failure is returned.
+   *
+   * @param expression the expression to evaluate
+   * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
+   *     empty variable context)
+   * @return either the evaluation result as boolean, or a failure
+   */
+  public Either<Failure, Boolean> evaluateBooleanExpression(
+      final Expression expression, final long scopeKey) {
+    return evaluateExpressionAsEither(expression, scopeKey)
+        .flatMap(result -> typeCheck(result, ResultType.BOOLEAN))
         .map(EvaluationResult::getBoolean);
   }
 
@@ -313,7 +327,8 @@ public final class ExpressionProcessor {
           new Failure(
               String.format(
                   "Expected result of the expression '%s' to be '%s', but was '%s'.",
-                  result.getExpression(), expectedResultType, result.getType())));
+                  result.getExpression(), expectedResultType, result.getType()),
+              ErrorType.EXTRACT_VALUE_ERROR));
     }
     return Either.right(result);
   }
@@ -334,10 +349,10 @@ public final class ExpressionProcessor {
 
   private Either<Failure, EvaluationResult> evaluateExpressionAsEither(
       final Expression expression, final long variableScopeKey) {
-    final var evaluationResult = evaluateExpression(expression, variableScopeKey);
-    return evaluationResult.isFailure()
-        ? Either.left(new Failure(evaluationResult.getFailureMessage()))
-        : Either.right(evaluationResult);
+    final var result = evaluateExpression(expression, variableScopeKey);
+    return result.isFailure()
+        ? Either.left(new Failure(result.getFailureMessage(), ErrorType.EXTRACT_VALUE_ERROR))
+        : Either.right(result);
   }
 
   private DirectBuffer wrapResult(final String result) {

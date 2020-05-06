@@ -27,14 +27,12 @@ import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import io.zeebe.protocol.record.value.BpmnElementType;
 import io.zeebe.protocol.record.value.ErrorType;
 import io.zeebe.util.Either;
-import java.util.Optional;
 
 public class ExclusiveGatewayProcessor implements BpmnElementProcessor<ExecutableExclusiveGateway> {
 
-  private static final String CONDITION_EVALUATION_ERROR =
-      "Expected to evaluate condition expression '%s' for sequence flow '%s', but the evaluation failed.";
   private static final String NO_OUTGOING_FLOW_CHOSEN_ERROR =
       "Expected at least one condition to evaluate to true, or to have a default flow";
+
   private final WorkflowInstanceRecord record = new WorkflowInstanceRecord();
 
   private final BpmnStateBehavior stateBehavior;
@@ -65,9 +63,10 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
       return;
     }
 
-    // find outgoing sequence flow with fulfilled condition or the default or none
+    // find outgoing sequence flow with fulfilled condition or the default
+    final var scopeKey = context.getElementInstanceKey();
     findSequenceFlowToTake(element, context)
-        .ifRight(
+        .ifRightOrLeft(
             sequenceFlow -> {
               stateTransitionBehavior.transitionToActivated(context);
               // defer sequence flow taken, as it will only be taken when the gateway is completed
@@ -75,10 +74,9 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
               record.setElementId(sequenceFlow.getId());
               record.setBpmnElementType(BpmnElementType.SEQUENCE_FLOW);
               deferredRecordsBehavior.deferNewRecord(
-                  context.getElementInstanceKey(),
-                  record,
-                  WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
-            });
+                  scopeKey, record, WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
+            },
+            failure -> incidentBehavior.createIncident(failure, context, scopeKey));
   }
 
   @Override
@@ -165,17 +163,12 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
     }
     for (final ExecutableSequenceFlow sequenceFlow : element.getOutgoingWithCondition()) {
       final Expression condition = sequenceFlow.getCondition();
-      final Optional<Boolean> isFulfilled =
-          expressionBehavior.evaluateBooleanExpression(condition, context.toStepContext());
-      if (isFulfilled.isEmpty()) {
-        // the condition evaluation failed and an incident is raised
-        // todo(@korthout): move the incident raising into this method (or even higher)
-        final String sequenceFlowId = bufferAsString(sequenceFlow.getId());
-        final String message =
-            String.format(CONDITION_EVALUATION_ERROR, condition.getExpression(), sequenceFlowId);
-        return Either.left(new Failure(message));
+      final Either<Failure, Boolean> isFulfilledOrFailure =
+          expressionBehavior.evaluateBooleanExpression(condition, context.getElementInstanceKey());
+      if (isFulfilledOrFailure.isLeft()) {
+        return Either.left(isFulfilledOrFailure.getLeft());
 
-      } else if (isFulfilled.get()) {
+      } else if (isFulfilledOrFailure.get()) {
         // the condition is fulfilled
         return Either.right(sequenceFlow);
       }
@@ -184,11 +177,6 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
     if (element.getDefaultFlow() != null) {
       return Either.right(element.getDefaultFlow());
     }
-    incidentBehavior.createIncident(
-        ErrorType.CONDITION_ERROR,
-        NO_OUTGOING_FLOW_CHOSEN_ERROR,
-        context,
-        context.getElementInstanceKey());
-    return Either.left(new Failure(NO_OUTGOING_FLOW_CHOSEN_ERROR));
+    return Either.left(new Failure(NO_OUTGOING_FLOW_CHOSEN_ERROR, ErrorType.CONDITION_ERROR));
   }
 }
