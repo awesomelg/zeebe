@@ -93,7 +93,7 @@ public final class RaftNamespaces {
   /**
    * Raft storage namespace.
    *
-   * *Be aware* we use the Void type for replaced/removed types to keep the id's of used types,
+   * <p>*Be aware* we use the Void type for replaced/removed types to keep the id's of used types,
    * otherwise we break compatibility.
    */
   public static final Namespace RAFT_STORAGE =
