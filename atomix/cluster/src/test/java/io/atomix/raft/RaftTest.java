@@ -87,11 +87,13 @@ public class RaftTest extends ConcurrentTestCase {
   public static AtomicLong snapshots = new AtomicLong(0);
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  protected volatile int nextId;
-  protected volatile List<RaftMember> members;
-  protected volatile List<RaftServer> servers = new ArrayList<>();
-  protected volatile TestRaftProtocolFactory protocolFactory;
-  protected volatile ThreadContext context;
+
+  @Rule public RaftRule raftRule = new RaftRule(3);
+  private volatile int nextId;
+  private volatile List<RaftMember> members;
+  private volatile List<RaftServer> servers = new ArrayList<>();
+  private volatile TestRaftProtocolFactory protocolFactory;
+  private volatile ThreadContext context;
   private Path directory;
   private final Map<MemberId, TestRaftServerProtocol> serverProtocols = Maps.newConcurrentMap();
 
@@ -131,21 +133,23 @@ public class RaftTest extends ConcurrentTestCase {
       members.add(nextMember(RaftMember.Type.ACTIVE));
     }
 
+    final CountDownLatch latch = new CountDownLatch(nodes);
+
     for (int i = 0; i < nodes; i++) {
       final RaftServer server = createServer(members.get(i).memberId());
       if (members.get(i).getType() == RaftMember.Type.ACTIVE) {
         server
             .bootstrap(members.stream().map(RaftMember::memberId).collect(Collectors.toList()))
-            .thenRun(this::resume);
+            .thenRun(latch::countDown);
       } else {
         server
             .listen(members.stream().map(RaftMember::memberId).collect(Collectors.toList()))
-            .thenRun(this::resume);
+            .thenRun(latch::countDown);
       }
       servers.add(server);
     }
 
-    await(30000 * nodes, nodes);
+    latch.await(30 * nodes, TimeUnit.SECONDS);
 
     return servers;
   }
@@ -209,14 +213,19 @@ public class RaftTest extends ConcurrentTestCase {
   /** Tests starting several members individually. */
   @Test
   public void testSingleMemberStart() throws Throwable {
+    // given
     final RaftServer server = createServers(1).get(0);
     server.bootstrap().thenRun(this::resume);
     await(10000);
+
+    // when
     final RaftServer joiner1 = createServer(nextNodeId());
     joiner1.join(server.cluster().getMember().memberId()).thenRun(this::resume);
     await(10000);
     final RaftServer joiner2 = createServer(nextNodeId());
     joiner2.join(server.cluster().getMember().memberId()).thenRun(this::resume);
+
+    // then
     await(10000);
   }
 
@@ -257,8 +266,8 @@ public class RaftTest extends ConcurrentTestCase {
           .thenRun(this::resume);
     }
     await(15000, 2);
-    final var newLaeder = getLeader(servers).orElseThrow();
-    appendEntries(newLaeder, 10);
+    final var newLeader = getLeader(servers).orElseThrow();
+    appendEntries(newLeader, 10);
   }
 
   /** Tests transferring leadership. */
@@ -1062,8 +1071,8 @@ public class RaftTest extends ConcurrentTestCase {
             s.addRoleChangeListener(
                 (role, term) -> {
                   if (role == Role.LEADER) {
-                    newLeaderElected.countDown();
                     newLeaderId.set(s.getContext().getCluster().getMember().memberId());
+                    newLeaderElected.countDown();
                   }
                 }));
     // when
@@ -1071,7 +1080,7 @@ public class RaftTest extends ConcurrentTestCase {
 
     // then
     assertTrue(newLeaderElected.await(30, TimeUnit.SECONDS));
-    assertTrue(!newLeaderId.get().equals(leaderId));
+    assertNotEquals(newLeaderId.get(), leaderId);
   }
 
   @Test

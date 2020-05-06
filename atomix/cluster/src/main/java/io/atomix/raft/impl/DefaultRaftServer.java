@@ -252,7 +252,7 @@ public class DefaultRaftServer implements RaftServer {
                       RaftContext.State.READY,
                       state -> {
                         started = true;
-                        openFutureRef.get().complete(null);
+                        openFutureRef.get().complete(this);
                       });
                 } else {
                   openFutureRef.get().completeExceptionally(error);

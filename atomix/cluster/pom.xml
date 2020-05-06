@@ -87,8 +87,6 @@
       <artifactId>simpleclient</artifactId>
       <groupId>io.prometheus</groupId>
     </dependency>
-
-
     <dependency>
       <artifactId>concurrentunit</artifactId>
       <groupId>net.jodah</groupId>
