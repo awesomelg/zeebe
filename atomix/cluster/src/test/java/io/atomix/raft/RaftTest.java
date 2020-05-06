@@ -71,7 +71,9 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,8 @@ import org.slf4j.LoggerFactory;
 public class RaftTest extends ConcurrentTestCase {
 
   public static AtomicLong snapshots = new AtomicLong(0);
+
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private volatile int nextId;
   private volatile List<RaftMember> members;
   private volatile List<RaftServer> servers = new ArrayList<>();

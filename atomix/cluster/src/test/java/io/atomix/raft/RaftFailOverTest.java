@@ -38,7 +38,6 @@ public class RaftFailOverTest {
     };
   }
 
-
   @Test
   @Ignore
   public void testNodeCatchUpAfterCompaction() {

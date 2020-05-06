@@ -61,7 +61,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.slf4j.LoggerFactory;
 
-public class RaftRule extends ExternalResource {
+public final class RaftRule extends ExternalResource {
 
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -109,8 +109,7 @@ public class RaftRule extends ExternalResource {
     context = new SingleThreadContext("raft-test-messaging-%d");
     protocolFactory = new TestRaftProtocolFactory(context);
 
-    if (nodeCount > 0)
-    {
+    if (nodeCount > 0) {
       createServers(nodeCount);
     }
   }
@@ -198,21 +197,25 @@ public class RaftRule extends ExternalResource {
         .join();
   }
 
-
   public CompletableFuture<RaftServer> startServer(final String memberId) {
-    final var raftMember = members.stream()
-        .filter(member -> member.memberId().id().equals(memberId)).findFirst().orElseThrow();
+    final var raftMember =
+        members.stream()
+            .filter(member -> member.memberId().id().equals(memberId))
+            .findFirst()
+            .orElseThrow();
     final var server = createServer(raftMember.memberId());
     final List<MemberId> members =
         this.members.stream().map(RaftMember::memberId).collect(Collectors.toList());
     return server.join(members);
   }
 
-  public CompletableFuture<Void> tryToCompactLogsOnServersExcept(final String memberId, final long index) {
+  public CompletableFuture<Void> tryToCompactLogsOnServersExcept(
+      final String memberId, final long index) {
 
-    final var servers = this.servers.stream()
-        .filter(server -> !server.name().equals(memberId))
-        .collect(Collectors.toList());
+    final var servers =
+        this.servers.stream()
+            .filter(server -> !server.name().equals(memberId))
+            .collect(Collectors.toList());
 
     final List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (final RaftServer server : servers) {
@@ -223,22 +226,17 @@ public class RaftRule extends ExternalResource {
   }
 
   public CompletableFuture<Void> tryToCompactLogOnServer(final String memberId, final long index) {
-    final var raftServer = servers.stream()
-        .filter(server -> server.name().equals(memberId))
-        .findFirst()
-        .orElseThrow();
-    raftServer
-        .getContext().getServiceManager().setCompactableIndex(index);
+    final var raftServer =
+        servers.stream().filter(server -> server.name().equals(memberId)).findFirst().orElseThrow();
+    raftServer.getContext().getServiceManager().setCompactableIndex(index);
     return raftServer.compact();
   }
 
-
-  private CompletableFuture<Void> tryToCompactLogOnServer(final RaftServer raftServer, final long index) {
-    raftServer
-        .getContext().getServiceManager().setCompactableIndex(index);
+  private CompletableFuture<Void> tryToCompactLogOnServer(
+      final RaftServer raftServer, final long index) {
+    raftServer.getContext().getServiceManager().setCompactableIndex(index);
     return raftServer.compact();
   }
-
 
   public void awaitNewLeader() {
     waitUntil(() -> getLeader().isPresent(), 100);
