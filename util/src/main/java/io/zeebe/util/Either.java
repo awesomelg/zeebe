@@ -110,6 +110,27 @@ public interface Either<L, R> {
   <T> Either<T, R> mapLeft(Function<? super L, ? extends T> left);
 
   /**
+   * Flatmaps the right value into a new Either, if this is a {@link Right}.
+   *
+   * <p>A common use case is to map a right value to a new right, unless some error occurs in which
+   * case the value can be mapped to a new left. Note that this flatMap does not allow to alter the
+   * type of the left side. Example:
+   *
+   * <pre>{@code
+   * Either.<String, Integer>right(0) // => Right(0)
+   *   .flatMap(x -> Either.right(x + 1)) // => Right(1)
+   *   .flatMap(x -> Either.left("an error occurred")) // => Left("an error occurred")
+   *   .getLeft(); // => "an error occurred"
+   * }</pre>
+   *
+   * @param right the flatmapping function for the right value
+   * @param <T> the type of the right side of the resulting either
+   * @return either a mapped {@link Right} or a new {@link Left} if this is a right; otherwise the
+   *     same left, but cast to consider the new type of the right.
+   */
+  <T> Either<L, ? extends T> flatMap(Function<? super R, ? extends Either<L, ? extends T>> right);
+
+  /**
    * Performs the given action with the value if this is a {@link Right}, otherwise does nothing.
    *
    * @param action the consuming function for the right value
@@ -123,7 +144,14 @@ public interface Either<L, R> {
    */
   void ifLeft(Consumer<L> action);
 
-  void ifLeftOrRight(Consumer<L> leftAction, Consumer<R> rightAction);
+  /**
+   * Performs the given left action with the value if this is a {@link Left}, otherwise performs the
+   * given right action with the value.
+   *
+   * @param rightAction the consuming function for the right value
+   * @param leftAction the consuming function for the left value
+   */
+  void ifRightOrLeft(Consumer<R> rightAction, Consumer<L> leftAction);
 
   final class Right<L, R> implements Either<L, R> {
 
@@ -165,6 +193,11 @@ public interface Either<L, R> {
       return (Either<T, R>) this;
     }
 
+    public <T> Either<L, ? extends T> flatMap(
+        final Function<? super R, ? extends Either<L, ? extends T>> right) {
+      return right.apply(this.value);
+    }
+
     @Override
     public void ifRight(final Consumer<R> right) {
       right.accept(this.value);
@@ -176,7 +209,7 @@ public interface Either<L, R> {
     }
 
     @Override
-    public void ifLeftOrRight(final Consumer<L> leftAction, final Consumer<R> rightAction) {
+    public void ifRightOrLeft(final Consumer<R> rightAction, final Consumer<L> leftAction) {
       rightAction.accept(this.value);
     }
 
@@ -242,6 +275,12 @@ public interface Either<L, R> {
       return Either.left(left.apply(this.value));
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> Either<L, ? extends T> flatMap(
+        final Function<? super R, ? extends Either<L, ? extends T>> right) {
+      return (Either<L, ? extends T>) this;
+    }
+
     @Override
     public void ifRight(final Consumer<R> right) {
       // do nothing
@@ -253,7 +292,7 @@ public interface Either<L, R> {
     }
 
     @Override
-    public void ifLeftOrRight(final Consumer<L> leftAction, final Consumer<R> rightAction) {
+    public void ifRightOrLeft(final Consumer<R> rightAction, final Consumer<L> leftAction) {
       leftAction.accept(this.value);
     }
 

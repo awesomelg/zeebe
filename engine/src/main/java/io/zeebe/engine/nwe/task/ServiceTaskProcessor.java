@@ -35,7 +35,6 @@ import io.zeebe.protocol.record.value.BpmnElementType;
 import io.zeebe.protocol.record.value.ErrorType;
 import io.zeebe.util.Either;
 import io.zeebe.util.buffer.BufferUtil;
-import java.util.Optional;
 
 public final class ServiceTaskProcessor implements BpmnElementProcessor<ExecutableServiceTask> {
 
@@ -96,27 +95,17 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivated(final ExecutableServiceTask element, final BpmnElementContext context) {
-
-    final Either<Failure, String> optJobType =
-        expressionBehavior.evaluateStringExpression(
-            element.getType(), context.getElementInstanceKey());
-
-    if (optJobType.isLeft()) {
-      final var failure = optJobType.getLeft();
-      incidentBehavior.createIncident(
-          ErrorType.EXTRACT_VALUE_ERROR,
-          failure.getMessage(),
-          context,
-          context.getElementInstanceKey());
-      return;
-    }
-
-    final Optional<Long> optRetries =
-        expressionBehavior.evaluateLongExpression(element.getRetries(), context.toStepContext());
-
-    if (optJobType.isRight() && optRetries.isPresent()) {
-      createNewJob(context, element, optJobType.get(), optRetries.get().intValue());
-    }
+    final var scopeKey = context.getElementInstanceKey();
+    final Either<Failure, String> jobTypeOrFailure =
+        expressionBehavior.evaluateStringExpression(element.getType(), scopeKey);
+    jobTypeOrFailure
+        .flatMap(
+            jobType -> expressionBehavior.evaluateLongExpression(element.getRetries(), scopeKey))
+        .ifRightOrLeft(
+            retries -> createNewJob(context, element, jobTypeOrFailure.get(), retries.intValue()),
+            failure ->
+                incidentBehavior.createIncident(
+                    ErrorType.EXTRACT_VALUE_ERROR, failure.getMessage(), context, scopeKey));
   }
 
   @Override

@@ -86,6 +86,12 @@ public class EitherTest {
   }
 
   @Test
+  public void onlyARightIsTransformedByFlatMap() {
+    assertThat(Either.right(value).flatMap(Either::left)).isEqualTo(Either.left(value));
+    assertThat(Either.left(value).flatMap(Either::right)).isEqualTo(Either.left(value));
+  }
+
+  @Test
   public void onlyARightIsConsumedByIfRight() {
     final var verifiableConsumer = new VerifiableConsumer();
     Either.right(value).ifRight(verifiableConsumer);
@@ -104,11 +110,11 @@ public class EitherTest {
   @Test
   public void onlyOneSideIsConsumedByIfRightOrLeft() {
     final var rightConsumer = new VerifiableConsumer();
-    Either.right(value).ifLeftOrRight(new FailConsumer(), rightConsumer);
+    Either.right(value).ifRightOrLeft(rightConsumer, new FailConsumer());
     assertThat(rightConsumer.hasBeenExecuted).isTrue();
 
     final var leftConsumer = new VerifiableConsumer();
-    Either.left(value).ifLeftOrRight(leftConsumer, new FailConsumer());
+    Either.left(value).ifRightOrLeft(new FailConsumer(), leftConsumer);
     assertThat(leftConsumer.hasBeenExecuted).isTrue();
   }
 

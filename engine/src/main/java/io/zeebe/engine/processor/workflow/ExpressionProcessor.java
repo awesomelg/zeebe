@@ -66,7 +66,7 @@ public final class ExpressionProcessor {
 
   /**
    * Evaluates the given expression and returns the result as string. If the evaluation fails or the
-   * result is not a string then an exception is thrown.
+   * result is not a string then a failure is returned.
    *
    * @param expression the expression to evaluate
    * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
@@ -110,6 +110,14 @@ public final class ExpressionProcessor {
         .map(Number::longValue);
   }
 
+  public Either<Failure, Long> evaluateLongExpression(
+      final Expression expression, final long scopeKey) {
+    return evaluateExpressionAsEither(expression, scopeKey)
+        .flatMap(result -> typeCheck(result, ResultType.NUMBER))
+        .map(EvaluationResult::getNumber)
+        .map(Number::longValue);
+  }
+
   /**
    * Evaluates the given expression and returns the result as boolean. If the evaluation fails or
    * the result is not a boolean then an incident is raised.
@@ -130,7 +138,7 @@ public final class ExpressionProcessor {
 
   /**
    * Evaluates the given expression and returns the result as an Interval. If the evaluation fails
-   * or the result is not an interval then an exception is thrown.
+   * or the result is not an interval then a failure is returned.
    *
    * @param expression the expression to evaluate
    * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
@@ -170,7 +178,7 @@ public final class ExpressionProcessor {
 
   /**
    * Evaluates the given expression and returns the result as ZonedDateTime. If the evaluation fails
-   * or the result is not a ZonedDateTime then an exception is thrown.
+   * or the result is not a ZonedDateTime then a failure is returned.
    *
    * @param expression the expression to evaluate
    * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
@@ -298,6 +306,18 @@ public final class ExpressionProcessor {
     }
   }
 
+  private Either<Failure, EvaluationResult> typeCheck(
+      EvaluationResult result, final ResultType expectedResultType) {
+    if (!result.getType().equals(expectedResultType)) {
+      return Either.left(
+          new Failure(
+              String.format(
+                  "Expected result of the expression '%s' to be '%s', but was '%s'.",
+                  result.getExpression(), expectedResultType, result.getType())));
+    }
+    return Either.right(result);
+  }
+
   private EvaluationResult evaluateExpression(
       final Expression expression, final long variableScopeKey) {
 
@@ -312,9 +332,23 @@ public final class ExpressionProcessor {
     return expressionLanguage.evaluateExpression(expression, context);
   }
 
+  private Either<Failure, EvaluationResult> evaluateExpressionAsEither(
+      final Expression expression, final long variableScopeKey) {
+    final var evaluationResult = evaluateExpression(expression, variableScopeKey);
+    return evaluationResult.isFailure()
+        ? Either.left(new Failure(evaluationResult.getFailureMessage()))
+        : Either.right(evaluationResult);
+  }
+
   private DirectBuffer wrapResult(final String result) {
     resultView.wrap(result.getBytes());
     return resultView;
+  }
+
+  @FunctionalInterface
+  public interface VariablesLookup {
+
+    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 
   public static final class EvaluationException extends RuntimeException {
@@ -374,11 +408,5 @@ public final class ExpressionProcessor {
 
       return lookup.getVariable(variableScopeKey, variableNameBuffer);
     }
-  }
-
-  @FunctionalInterface
-  public interface VariablesLookup {
-
-    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 }
