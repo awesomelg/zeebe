@@ -90,13 +90,28 @@ public final class RaftNamespaces {
           .register(ZeebeEntry.class)
           .build("RaftProtocol");
 
-  /** Raft storage namespace. */
+  /**
+   * Raft storage namespace.
+   *
+   * *Be aware* we use the Void type for replaced/removed types to keep the id's of used types,
+   * otherwise we break compatibility.
+   */
   public static final Namespace RAFT_STORAGE =
       Namespace.builder()
           .register(Namespaces.BASIC)
           .nextId(Namespaces.BEGIN_USER_CUSTOM_ID + 100)
+          .register(Void.class)
+          .register(Void.class)
           .register(ConfigurationEntry.class)
           .register(InitializeEntry.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
+          .register(Void.class)
           .register(ArrayList.class)
           .register(HashSet.class)
           .register(DefaultRaftMember.class)
