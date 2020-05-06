@@ -92,9 +92,7 @@ public class Indexed<E> {
       return false;
     }
     final Indexed<?> indexed = (Indexed<?>) o;
-    return index == indexed.index &&
-        size == indexed.size &&
-        Objects.equals(entry, indexed.entry);
+    return index == indexed.index && size == indexed.size && Objects.equals(entry, indexed.entry);
   }
 
   @Override

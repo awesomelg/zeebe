@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2020 camunda services GmbH (info@camunda.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.atomix.raft;
 
 import static org.junit.Assert.assertTrue;
@@ -67,8 +82,7 @@ public class RaftRule extends ExternalResource {
   }
 
   @Override
-  public Statement apply(final Statement base,
-      final Description description) {
+  public Statement apply(final Statement base, final Description description) {
     final var statement = super.apply(base, description);
     return temporaryFolder.apply(statement, description);
   }
@@ -133,10 +147,7 @@ public class RaftRule extends ExternalResource {
     return MemberId.from(String.valueOf(++nextId));
   }
 
-
-  /**
-   * Creates a set of Raft servers.
-   */
+  /** Creates a set of Raft servers. */
   private List<RaftServer> createServers(final int nodes) throws Exception {
     final List<RaftServer> servers = new ArrayList<>();
 
@@ -167,8 +178,7 @@ public class RaftRule extends ExternalResource {
     return servers;
   }
 
-  public void shutdownServer(final String memberId)
-  {
+  public void shutdownServer(final String memberId) {
     servers.stream()
         .filter(server -> server.name().equals(memberId))
         .findFirst()
@@ -183,33 +193,33 @@ public class RaftRule extends ExternalResource {
 
   private void addCommitListener(final RaftServer raftServer) {
     memberLog.put(raftServer.name(), new CopyOnWriteArrayList<>());
-    raftServer.getContext().addCommitListener(new RaftCommitListener() {
-      @Override
-      public <T extends RaftLogEntry> void onCommit(final Indexed<T> entry) {
-        memberLog.get(raftServer.name()).add(entry);
+    raftServer
+        .getContext()
+        .addCommitListener(
+            new RaftCommitListener() {
+              @Override
+              public <T extends RaftLogEntry> void onCommit(final Indexed<T> entry) {
+                memberLog.get(raftServer.name()).add(entry);
 
-        final var index = entry.index();
-        if (highestCommit < index) {
-          highestCommit = index;
-        }
+                final var index = entry.index();
+                if (highestCommit < index) {
+                  highestCommit = index;
+                }
 
-        final var commitAwaiter = commitAwaiterRef.get();
-        if (commitAwaiter != null && commitAwaiter.reachedCommit(index)) {
-          commitAwaiterRef.set(null);
-        }
-      }
-    });
+                final var commitAwaiter = commitAwaiterRef.get();
+                if (commitAwaiter != null && commitAwaiter.reachedCommit(index)) {
+                  commitAwaiterRef.set(null);
+                }
+              }
+            });
   }
 
   public Map<String, List<Indexed<?>>> getMemberLog() {
     return memberLog;
   }
 
-  public void awaitSameLogSizeOnAllNodes()
-  {
-    waitUntil(() ->
-      memberLog.values().stream().map(List::size).distinct().count() == 1
-     );
+  public void awaitSameLogSizeOnAllNodes() {
+    waitUntil(() -> memberLog.values().stream().map(List::size).distinct().count() == 1);
   }
 
   private void waitUntil(final BooleanSupplier condition) {
@@ -240,16 +250,13 @@ public class RaftRule extends ExternalResource {
     commitAwaiter.awaitCommit();
   }
 
-  /**
-   * Creates a Raft server.
-   */
+  /** Creates a Raft server. */
   private RaftServer createServer(final MemberId memberId) {
     return createServer(memberId, b -> b.withStorage(createStorage(memberId)));
   }
 
   private RaftServer createServer(
-      final MemberId memberId,
-      final Function<Builder, Builder> configurator) {
+      final MemberId memberId, final Function<Builder, Builder> configurator) {
     final TestRaftServerProtocol protocol = protocolFactory.newServerProtocol(memberId);
     final RaftServer.Builder defaults =
         RaftServer.builder(memberId)
@@ -369,8 +376,7 @@ public class RaftRule extends ExternalResource {
     private final CompletableFuture<Long> commitFuture = new CompletableFuture<>();
 
     @Override
-    public void onWrite(final Indexed<ZeebeEntry> indexed) {
-    }
+    public void onWrite(final Indexed<ZeebeEntry> indexed) {}
 
     @Override
     public void onWriteError(final Throwable error) {

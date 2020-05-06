@@ -57,9 +57,9 @@ public class ZeebeEntry extends TimestampedEntry {
       return false;
     }
     final ZeebeEntry that = (ZeebeEntry) o;
-    return lowestPosition == that.lowestPosition &&
-        highestPosition == that.highestPosition &&
-        data.equals(that.data);
+    return lowestPosition == that.lowestPosition
+        && highestPosition == that.highestPosition
+        && data.equals(that.data);
   }
 
   @Override

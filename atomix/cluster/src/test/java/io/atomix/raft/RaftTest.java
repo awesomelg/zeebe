@@ -87,7 +87,6 @@ public class RaftTest extends ConcurrentTestCase {
   public static AtomicLong snapshots = new AtomicLong(0);
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-
   @Rule public RaftRule raftRule = new RaftRule(3);
   private volatile int nextId;
   private volatile List<RaftMember> members;
