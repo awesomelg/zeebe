@@ -167,6 +167,20 @@ public class RaftRule extends ExternalResource {
     return servers;
   }
 
+  public void shutdownServer(final String memberId)
+  {
+    servers.stream()
+        .filter(server -> server.name().equals(memberId))
+        .findFirst()
+        .orElseThrow()
+        .shutdown()
+        .join();
+  }
+
+  public void awaitNewLeader() {
+    waitUntil(() -> getLeader().isPresent(), 100);
+  }
+
   private void addCommitListener(final RaftServer raftServer) {
     memberLog.put(raftServer.name(), new CopyOnWriteArrayList<>());
     raftServer.getContext().addCommitListener(new RaftCommitListener() {

@@ -437,44 +437,6 @@ public class RaftTest extends ConcurrentTestCase {
 
   /** Tests submitting a command. */
   @Test
-  public void testOneNodeSubmitCommand() throws Throwable {
-    testSubmitCommand(1);
-  }
-
-  /** Tests submitting a command with a configured consistency level. */
-  private void testSubmitCommand(final int nodes) throws Throwable {
-    createServers(nodes);
-
-    final var leader = getLeader(servers).orElseThrow();
-    appendEntry(leader);
-  }
-
-  /** Tests submitting a command. */
-  @Test
-  public void testTwoNodeSubmitCommand() throws Throwable {
-    testSubmitCommand(2);
-  }
-
-  /** Tests submitting a command. */
-  @Test
-  public void testThreeNodeSubmitCommand() throws Throwable {
-    testSubmitCommand(3);
-  }
-
-  /** Tests submitting a command. */
-  @Test
-  public void testFourNodeSubmitCommand() throws Throwable {
-    testSubmitCommand(4);
-  }
-
-  /** Tests submitting a command. */
-  @Test
-  public void testFiveNodeSubmitCommand() throws Throwable {
-    testSubmitCommand(5);
-  }
-
-  /** Tests submitting a command. */
-  @Test
   public void testTwoOfThreeNodeSubmitCommand() throws Throwable {
     testSubmitCommand(2, 3);
   }
