@@ -11,10 +11,10 @@ import io.zeebe.engine.Loggers;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.BpmnElementProcessor;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
+import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
-import io.zeebe.engine.nwe.behavior.DeferredRecordsBehavior;
 import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.workflow.CatchEventBehavior;
@@ -46,7 +46,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
   private final CatchEventBehavior eventSubscriptionBehavior;
   private final ExpressionProcessor expressionBehavior;
   private final TypedCommandWriter commandWriter;
-  private final DeferredRecordsBehavior deferredRecordsBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
   private final BpmnIncidentBehavior incidentBehavior;
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
@@ -174,7 +174,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
     // TODO (saig0): terminate flow scope in container
     // terminate scope if scope is terminated and last active token
     // publish deferred event if an interrupting event sub-process was triggered
-    stateBehavior.terminateFlowScope(context); // interruption is part of this (still)
+    stateTransitionBehavior.onTerminated(element, context); // interruption is part of this (still)
 
     // consume token
     stateBehavior.consumeToken(context);

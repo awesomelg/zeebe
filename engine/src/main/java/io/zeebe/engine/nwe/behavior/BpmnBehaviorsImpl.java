@@ -22,7 +22,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
   private final TypedStreamWriter streamWriter;
-  private final DeferredRecordsBehavior deferredRecordsBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
 
   public BpmnBehaviorsImpl(
       final ExpressionProcessor expressionBehavior,
@@ -32,7 +32,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
       final BpmnStateBehavior stateBehavior,
       final BpmnStateTransitionBehavior stateTransitionBehavior,
       final TypedStreamWriter streamWriter,
-      final DeferredRecordsBehavior deferredRecordsBehavior) {
+      final BpmnDeferredRecordsBehavior deferredRecordsBehavior) {
     this.expressionBehavior = expressionBehavior;
     this.variableMappingBehavior = variableMappingBehavior;
     this.eventSubscriptionBehavior = eventSubscriptionBehavior;
@@ -79,7 +79,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   }
 
   @Override
-  public DeferredRecordsBehavior deferredRecordsBehavior() {
+  public BpmnDeferredRecordsBehavior deferredRecordsBehavior() {
     return deferredRecordsBehavior;
   }
 }

@@ -11,6 +11,7 @@ import io.zeebe.el.Expression;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
+import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.workflow.CatchEventBehavior;
@@ -20,6 +21,7 @@ import io.zeebe.engine.state.instance.VariablesState;
 import io.zeebe.msgpack.spec.MsgPackHelper;
 import io.zeebe.msgpack.spec.MsgPackReader;
 import io.zeebe.msgpack.spec.MsgPackWriter;
+import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import io.zeebe.util.buffer.BufferUtil;
 import java.util.List;
 import java.util.Optional;
@@ -47,11 +49,13 @@ public final class MultiInstanceBodyProcessor
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
   private final CatchEventBehavior eventSubscriptionBehavior;
   private final BpmnStateBehavior stateBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
   private final VariablesState variablesState;
 
   public MultiInstanceBodyProcessor(final BpmnBehaviors bpmnBehaviors) {
     stateTransitionBehavior = bpmnBehaviors.stateTransitionBehavior();
     eventSubscriptionBehavior = bpmnBehaviors.eventSubscriptionBehavior();
+    deferredRecordsBehavior = bpmnBehaviors.deferredRecordsBehavior();
     stateBehavior = bpmnBehaviors.stateBehavior();
     variablesState = stateBehavior.getVariablesState();
     expressionBehavior = bpmnBehaviors.expressionBehavior();
@@ -261,6 +265,21 @@ public final class MultiInstanceBodyProcessor
 
     if (stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
       stateTransitionBehavior.transitionToCompleting(flowScopeContext);
+    }
+  }
+
+  @Override
+  public void onChildTerminated(
+      final ExecutableMultiInstanceBody element,
+      final BpmnElementContext flowScopeContext,
+      final BpmnElementContext childContext) {
+
+    if (flowScopeContext.getIntent() == WorkflowInstanceIntent.ELEMENT_TERMINATING
+        && stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
+      stateTransitionBehavior.transitionToTerminated(flowScopeContext);
+
+    } else if (stateBehavior.isInterrupted(flowScopeContext)) {
+      deferredRecordsBehavior.publishInterruptingEvent(childContext);
     }
   }
 

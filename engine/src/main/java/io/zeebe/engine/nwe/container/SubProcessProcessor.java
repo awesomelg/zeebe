@@ -10,19 +10,23 @@ package io.zeebe.engine.nwe.container;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
+import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElementContainer;
+import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 
 public final class SubProcessProcessor
     implements BpmnElementContainerProcessor<ExecutableFlowElementContainer> {
 
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
 
   public SubProcessProcessor(final BpmnBehaviors bpmnBehaviors) {
     stateBehavior = bpmnBehaviors.stateBehavior();
     stateTransitionBehavior = bpmnBehaviors.stateTransitionBehavior();
+    deferredRecordsBehavior = bpmnBehaviors.deferredRecordsBehavior();
   }
 
   @Override
@@ -34,6 +38,21 @@ public final class SubProcessProcessor
     // TODO (saig0): consume token before calling
     if (stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
       stateTransitionBehavior.transitionToCompleting(flowScopeContext);
+    }
+  }
+
+  @Override
+  public void onChildTerminated(
+      final ExecutableFlowElementContainer element,
+      final BpmnElementContext flowScopeContext,
+      final BpmnElementContext childContext) {
+
+    if (flowScopeContext.getIntent() == WorkflowInstanceIntent.ELEMENT_TERMINATING
+        && stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
+      stateTransitionBehavior.transitionToTerminated(flowScopeContext);
+
+    } else if (stateBehavior.isInterrupted(flowScopeContext)) {
+      deferredRecordsBehavior.publishInterruptingEvent(childContext);
     }
   }
 

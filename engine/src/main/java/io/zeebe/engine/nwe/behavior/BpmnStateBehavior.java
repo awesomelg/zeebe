@@ -8,18 +8,15 @@
 package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.nwe.BpmnElementContext;
-import io.zeebe.engine.processor.workflow.WorkflowInstanceLifecycle;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.instance.ElementInstance;
 import io.zeebe.engine.state.instance.ElementInstanceState;
 import io.zeebe.engine.state.instance.EventScopeInstanceState;
-import io.zeebe.engine.state.instance.IndexedRecord;
 import io.zeebe.engine.state.instance.JobState;
 import io.zeebe.engine.state.instance.VariablesState;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 
@@ -87,64 +84,10 @@ public final class BpmnStateBehavior {
     return activePaths == 1;
   }
 
-  public void completeFlowScope(final BpmnElementContext context) {
-    final ElementInstance flowScopeInstance = getFlowScopeInstance(context);
-    final WorkflowInstanceRecord flowScopeInstanceValue = flowScopeInstance.getValue();
-
-    streamWriter.appendFollowUpEvent(
-        flowScopeInstance.getKey(),
-        WorkflowInstanceIntent.ELEMENT_COMPLETING,
-        flowScopeInstanceValue);
-    // TODO (saig0): update state because of the step guards
-    flowScopeInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETING);
-    updateElementInstance(flowScopeInstance);
-  }
-
   public void consumeToken(final BpmnElementContext context) {
     final ElementInstance flowScopeInstance = getFlowScopeInstance(context);
     if (flowScopeInstance != null) {
       elementInstanceState.consumeToken(flowScopeInstance.getKey());
-    }
-  }
-
-  // from ElementTerminatedHandler (with small changes)
-  public void terminateFlowScope(final BpmnElementContext context) {
-    final ElementInstance flowScopeInstance = getFlowScopeInstance(context);
-    final boolean isScopeTerminating =
-        flowScopeInstance != null
-            && WorkflowInstanceLifecycle.canTransition(
-                flowScopeInstance.getState(), WorkflowInstanceIntent.ELEMENT_TERMINATED);
-    if (isScopeTerminating && isLastActiveExecutionPathInScope(context)) {
-      streamWriter.appendFollowUpEvent(
-          flowScopeInstance.getKey(),
-          WorkflowInstanceIntent.ELEMENT_TERMINATED,
-          flowScopeInstance.getValue());
-      // TODO (saig0): update state because of the step guards
-      flowScopeInstance.setState(WorkflowInstanceIntent.ELEMENT_TERMINATED);
-      updateElementInstance(flowScopeInstance);
-
-    } else if (wasInterrupted(flowScopeInstance)) {
-      publishInterruptingEventSubproc(context, flowScopeInstance);
-    }
-  }
-
-  // from ElementTerminatedHandler (with small changes)
-  private void publishInterruptingEventSubproc(
-      final BpmnElementContext context, final ElementInstance flowScopeInstance) {
-    final Optional<IndexedRecord> eventSubprocOptional =
-        elementInstanceState.getDeferredRecords(flowScopeInstance.getKey()).stream()
-            .filter(r -> r.getKey() == flowScopeInstance.getInterruptingEventKey())
-            .findFirst();
-
-    if (eventSubprocOptional.isPresent()) {
-      final IndexedRecord record = eventSubprocOptional.get();
-
-      record.getValue().setFlowScopeKey(flowScopeInstance.getKey());
-      if (record.getState().equals(WorkflowInstanceIntent.ELEMENT_ACTIVATING)) {
-        elementInstanceState.newInstance(
-            flowScopeInstance, record.getKey(), record.getValue(), record.getState());
-      }
-      streamWriter.appendFollowUpEvent(record.getKey(), record.getState(), record.getValue());
     }
   }
 
@@ -160,12 +103,15 @@ public final class BpmnStateBehavior {
     return elementInstanceState.getInstance(context.getFlowScopeKey());
   }
 
-  // from ElementTerminatedHandler
-  private boolean wasInterrupted(final ElementInstance flowScopeInstance) {
-    return flowScopeInstance != null
-        && flowScopeInstance.getNumberOfActiveTokens() == 2
-        && flowScopeInstance.isInterrupted()
-        && flowScopeInstance.isActive();
+  // TODO (saig0): move to event related behavior
+  public boolean isInterrupted(final BpmnElementContext context) {
+    // from ElementTerminatedHandler
+    final var elementInstance = getElementInstance(context);
+
+    return elementInstance != null
+        && elementInstance.getNumberOfActiveTokens() == 2
+        && elementInstance.isInterrupted()
+        && elementInstance.isActive();
   }
 
   public void removeInstance(final BpmnElementContext context) {
@@ -189,6 +135,7 @@ public final class BpmnStateBehavior {
         WorkflowInstanceIntent.ELEMENT_ACTIVATING);
   }
 
+  // TODO (saig0): move to event related behavior
   public void createBoundaryInstance(
       final BpmnElementContext context,
       final long boundaryInstanceKey,
@@ -237,6 +184,7 @@ public final class BpmnStateBehavior {
     return context.copy(flowScope.getKey(), flowScope.getValue(), flowScope.getState());
   }
 
+  // TODO (saig0): move to event related behavior
   public void deleteTrigger(final long eventScopeKey, final long eventKey) {
     eventScopeInstanceState.deleteTrigger(eventScopeKey, eventKey);
   }

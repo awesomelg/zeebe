@@ -28,5 +28,5 @@ public interface BpmnBehaviors {
 
   BpmnStateTransitionBehavior stateTransitionBehavior();
 
-  DeferredRecordsBehavior deferredRecordsBehavior();
+  BpmnDeferredRecordsBehavior deferredRecordsBehavior();
 }

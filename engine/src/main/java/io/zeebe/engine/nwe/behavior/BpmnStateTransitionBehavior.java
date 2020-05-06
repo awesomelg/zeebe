@@ -126,6 +126,8 @@ public final class BpmnStateTransitionBehavior {
 
     streamWriter.appendNewEvent(
         keyGenerator.nextKey(), WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN, record);
+
+    stateBehavior.spawnToken(context);
   }
 
   public ElementInstance activateChildInstance(
@@ -146,6 +148,7 @@ public final class BpmnStateTransitionBehavior {
     return stateBehavior.createChildElementInstance(context, childInstanceKey, childInstanceRecord);
   }
 
+  // TODO (saig0): move to event related behavior?
   public long activateBoundaryInstance(
       final BpmnElementContext context,
       final WorkflowInstanceRecord record,
@@ -161,6 +164,19 @@ public final class BpmnStateTransitionBehavior {
     return boundaryInstanceKey;
   }
 
+  public <T extends ExecutableFlowNode> void takeOutgoingSequenceFlows(
+      final T element, final BpmnElementContext context) {
+
+    final var outgoingSequenceFlows = element.getOutgoing();
+    if (outgoingSequenceFlows.isEmpty()) {
+      // behaves like an implicit end event
+      onCompleted(element, context);
+
+    } else {
+      outgoingSequenceFlows.forEach(sequenceFlow -> takeSequenceFlow(context, sequenceFlow));
+    }
+  }
+
   public void onCompleted(
       final ExecutableFlowElement element, final BpmnElementContext childContext) {
 
@@ -171,21 +187,14 @@ public final class BpmnStateTransitionBehavior {
     flowScopeProcessor.onChildCompleted(flowScope, flowScopeContext, childContext);
   }
 
-  public <T extends ExecutableFlowNode> void takeOutgoingSequenceFlows(
-      final T element, final BpmnElementContext context) {
+  public void onTerminated(
+      final ExecutableFlowElement element, final BpmnElementContext childContext) {
 
-    final var outgoingSequenceFlows = element.getOutgoing();
-    if (outgoingSequenceFlows.isEmpty()) {
-      // behaves like an implicit end event
-      onCompleted(element, context);
+    final var flowScope = element.getFlowScope();
+    final var flowScopeProcessor = processorLookUp.apply(flowScope.getElementType());
+    final var flowScopeContext = stateBehavior.getFlowScopeContext(childContext);
 
-    } else {
-      outgoingSequenceFlows.forEach(
-          sequenceFlow -> {
-            takeSequenceFlow(context, sequenceFlow);
-            stateBehavior.spawnToken(context);
-          });
-    }
+    flowScopeProcessor.onChildTerminated(flowScope, flowScopeContext, childContext);
   }
 
   private static final class IllegalStateTransitionException extends IllegalStateException {

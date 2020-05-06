@@ -16,4 +16,7 @@ public interface BpmnElementContainerProcessor<T extends ExecutableFlowElement>
       final T element,
       final BpmnElementContext flowScopeContext,
       final BpmnElementContext childContext);
+
+  void onChildTerminated(
+      T element, BpmnElementContext flowScopeContext, BpmnElementContext childContext);
 }

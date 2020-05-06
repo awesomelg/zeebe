@@ -10,7 +10,9 @@ package io.zeebe.engine.nwe.container;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
+import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElementContainer;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 
@@ -18,9 +20,13 @@ public final class ProcessProcessor
     implements BpmnElementContainerProcessor<ExecutableFlowElementContainer> {
 
   private final BpmnStateBehavior stateBehavior;
+  private final BpmnStateTransitionBehavior stateTransitionBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
 
   public ProcessProcessor(final BpmnBehaviors bpmnBehaviors) {
     stateBehavior = bpmnBehaviors.stateBehavior();
+    stateTransitionBehavior = bpmnBehaviors.stateTransitionBehavior();
+    deferredRecordsBehavior = bpmnBehaviors.deferredRecordsBehavior();
   }
 
   @Override
@@ -30,11 +36,22 @@ public final class ProcessProcessor
       final BpmnElementContext childContext) {
 
     if (stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
-      stateBehavior.completeFlowScope(childContext);
+      stateTransitionBehavior.transitionToCompleting(flowScopeContext);
+    }
+  }
 
-      stateBehavior.updateFlowScopeInstance(
-          childContext,
-          elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETING));
+  @Override
+  public void onChildTerminated(
+      final ExecutableFlowElementContainer element,
+      final BpmnElementContext flowScopeContext,
+      final BpmnElementContext childContext) {
+
+    if (flowScopeContext.getIntent() == WorkflowInstanceIntent.ELEMENT_TERMINATING
+        && stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
+      stateTransitionBehavior.transitionToTerminated(flowScopeContext);
+
+    } else if (stateBehavior.isInterrupted(flowScopeContext)) {
+      deferredRecordsBehavior.publishInterruptingEvent(childContext);
     }
   }
 

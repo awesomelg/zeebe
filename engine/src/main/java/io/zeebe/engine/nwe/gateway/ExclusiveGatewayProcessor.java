@@ -7,24 +7,26 @@
  */
 package io.zeebe.engine.nwe.gateway;
 
+import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
+
 import io.zeebe.el.Expression;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.BpmnElementProcessor;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
+import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
-import io.zeebe.engine.nwe.behavior.DeferredRecordsBehavior;
 import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableExclusiveGateway;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableSequenceFlow;
+import io.zeebe.engine.state.instance.IndexedRecord;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import io.zeebe.protocol.record.value.BpmnElementType;
 import io.zeebe.protocol.record.value.ErrorType;
 import io.zeebe.util.Either;
-import io.zeebe.util.buffer.BufferUtil;
 import java.util.Optional;
 
 public class ExclusiveGatewayProcessor implements BpmnElementProcessor<ExecutableExclusiveGateway> {
@@ -38,7 +40,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
   private final BpmnIncidentBehavior incidentBehavior;
-  private final DeferredRecordsBehavior deferredRecordsBehavior;
+  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
   private final ExpressionProcessor expressionBehavior;
 
   public ExclusiveGatewayProcessor(final BpmnBehaviors behaviors) {
@@ -94,9 +96,15 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
   @Override
   public void onCompleted(
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
-    deferredRecordsBehavior.publishDeferredRecords(context);
 
-    stateTransitionBehavior.onCompleted(element, context);
+    deferredRecordsBehavior.getDeferredRecords(context).stream()
+        .filter(record -> record.getState() == WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN)
+        .findFirst()
+        .map(record -> getOutgoingSequenceFlow(element, context, record))
+        .ifPresentOrElse(
+            sequenceFlow -> stateTransitionBehavior.takeSequenceFlow(context, sequenceFlow),
+            () -> stateTransitionBehavior.onCompleted(element, context));
+
     stateBehavior.consumeToken(context);
 
     // TODO (saig0): remove instance from state
@@ -111,19 +119,14 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
   @Override
   public void onTerminated(
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
-    // for all activities:
     // publish deferred events (i.e. an occurred boundary event)
     // TODO (saig0): there can be no boundary event here
     deferredRecordsBehavior.publishDeferredRecords(context);
 
-    // resolve incidents
     incidentBehavior.resolveIncidents(context);
 
-    // terminate scope if scope is terminated and last active token
-    // publish deferred event if an interrupting event sub-process was triggered
-    stateBehavior.terminateFlowScope(context); // interruption is part of this (still)
+    stateTransitionBehavior.onTerminated(element, context);
 
-    // consume token
     stateBehavior.consumeToken(context);
 
     // TODO (saig0): remove instance from state
@@ -134,6 +137,24 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
     throw new UnsupportedOperationException(
         "expected to handle occurred event on exclusive gateway, but events should not occur on exclusive gateway");
+  }
+
+  private ExecutableSequenceFlow getOutgoingSequenceFlow(
+      final ExecutableExclusiveGateway element,
+      final BpmnElementContext context,
+      final IndexedRecord record) {
+
+    final var sequenceFlowId = record.getValue().getElementIdBuffer();
+
+    return element.getOutgoing().stream()
+        .filter(sequenceFlow -> sequenceFlow.getId().equals(sequenceFlowId))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    String.format(
+                        "Expected sequence flow with id '%s' but not found. [context: %s]",
+                        bufferAsString(sequenceFlowId), context)));
   }
 
   private Either<Failure, ExecutableSequenceFlow> findSequenceFlowToTake(
@@ -149,7 +170,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
       if (isFulfilled.isEmpty()) {
         // the condition evaluation failed and an incident is raised
         // todo(@korthout): move the incident raising into this method (or even higher)
-        final String sequenceFlowId = BufferUtil.bufferAsString(sequenceFlow.getId());
+        final String sequenceFlowId = bufferAsString(sequenceFlow.getId());
         final String message =
             String.format(CONDITION_EVALUATION_ERROR, condition.getExpression(), sequenceFlowId);
         return Either.left(new Failure(message));
