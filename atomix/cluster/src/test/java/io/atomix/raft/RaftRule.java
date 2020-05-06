@@ -77,8 +77,19 @@ public class RaftRule extends ExternalResource {
   private volatile long highestCommit;
   private final AtomicReference<CommitAwaiter> commitAwaiterRef = new AtomicReference<>();
 
-  public RaftRule(final int nodeCount) {
+  private RaftRule(final int nodeCount) {
     this.nodeCount = nodeCount;
+  }
+
+  public static RaftRule withBootstrappedNodes(final int nodeCount) {
+    if (nodeCount < 1) {
+      throw new IllegalArgumentException("Expected to have at least one node to configure.");
+    }
+    return new RaftRule(nodeCount);
+  }
+
+  public static RaftRule withoutNodes() {
+    return new RaftRule(-1);
   }
 
   @Override
@@ -98,7 +109,10 @@ public class RaftRule extends ExternalResource {
     context = new SingleThreadContext("raft-test-messaging-%d");
     protocolFactory = new TestRaftProtocolFactory(context);
 
-    createServers(nodeCount);
+    if (nodeCount > 0)
+    {
+      createServers(nodeCount);
+    }
   }
 
   @Override
@@ -114,15 +128,12 @@ public class RaftRule extends ExternalResource {
             // its fine..
           }
         });
-
-    if (context != null) {
-      context.close();
-    }
-
-    members.clear();
-    nextId = 0;
     servers.clear();
+    context.close();
     context = null;
+    members.clear();
+    serverProtocols.clear();
+    nextId = 0;
     protocolFactory = null;
     highestCommit = 0;
     commitAwaiterRef.set(null);
@@ -186,6 +197,48 @@ public class RaftRule extends ExternalResource {
         .shutdown()
         .join();
   }
+
+
+  public CompletableFuture<RaftServer> startServer(final String memberId) {
+    final var raftMember = members.stream()
+        .filter(member -> member.memberId().id().equals(memberId)).findFirst().orElseThrow();
+    final var server = createServer(raftMember.memberId());
+    final List<MemberId> members =
+        this.members.stream().map(RaftMember::memberId).collect(Collectors.toList());
+    return server.join(members);
+  }
+
+  public CompletableFuture<Void> tryToCompactLogsOnServersExcept(final String memberId, final long index) {
+
+    final var servers = this.servers.stream()
+        .filter(server -> !server.name().equals(memberId))
+        .collect(Collectors.toList());
+
+    final List<CompletableFuture<Void>> futures = new ArrayList<>();
+    for (final RaftServer server : servers) {
+      futures.add(tryToCompactLogOnServer(server, index));
+    }
+
+    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+  }
+
+  public CompletableFuture<Void> tryToCompactLogOnServer(final String memberId, final long index) {
+    final var raftServer = servers.stream()
+        .filter(server -> server.name().equals(memberId))
+        .findFirst()
+        .orElseThrow();
+    raftServer
+        .getContext().getServiceManager().setCompactableIndex(index);
+    return raftServer.compact();
+  }
+
+
+  private CompletableFuture<Void> tryToCompactLogOnServer(final RaftServer raftServer, final long index) {
+    raftServer
+        .getContext().getServiceManager().setCompactableIndex(index);
+    return raftServer.compact();
+  }
+
 
   public void awaitNewLeader() {
     waitUntil(() -> getLeader().isPresent(), 100);

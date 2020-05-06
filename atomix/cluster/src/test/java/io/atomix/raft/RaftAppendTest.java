@@ -35,10 +35,10 @@ public class RaftAppendTest {
   @Parameters(name = "{index}: {0}")
   public static Object[][] reprocessingTriggers() {
     return new Object[][] {
-      new Object[] {new RaftRule(2)},
-      new Object[] {new RaftRule(3)},
-      new Object[] {new RaftRule(4)},
-      new Object[] {new RaftRule(5)}
+        new Object[] {RaftRule.withBootstrappedNodes(2)},
+        new Object[] {RaftRule.withBootstrappedNodes(3)},
+        new Object[] {RaftRule.withBootstrappedNodes(4)},
+        new Object[] {RaftRule.withBootstrappedNodes(5)}
     };
   }
 
