@@ -8,6 +8,7 @@
 package io.zeebe.engine.nwe;
 
 import io.zeebe.engine.Loggers;
+import io.zeebe.engine.metrics.WorkflowEngineMetrics;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviorsImpl;
 import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
@@ -69,6 +70,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
                 streamWriterProxy,
                 zeebeState.getKeyGenerator(),
                 stateBehavior,
+                new WorkflowEngineMetrics(zeebeState.getPartitionId()),
                 this::getContainerProcessor),
             streamWriterProxy,
             new BpmnDeferredRecordsBehavior(zeebeState, streamWriterProxy, stateBehavior));

@@ -19,6 +19,7 @@ import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.instance.WorkflowEngineState;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
+import io.zeebe.protocol.record.value.BpmnElementType;
 import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 
@@ -85,6 +86,11 @@ public final class BpmnElementContextImpl implements BpmnElementContext {
   }
 
   @Override
+  public BpmnElementType getBpmnElementType() {
+    return recordValue.getBpmnElementType();
+  }
+
+  @Override
   public <T extends ExecutableFlowElement> BpmnStepContext<T> toStepContext() {
     return (BpmnStepContext<T>) stepContext;
   }
@@ -140,7 +146,7 @@ public final class BpmnElementContextImpl implements BpmnElementContext {
         + ", elementId="
         + bufferAsString(getElementId())
         + ", bpmnElementType="
-        + getRecordValue().getBpmnElementType()
+        + getBpmnElementType()
         + ", elementInstanceKey="
         + getElementInstanceKey()
         + ", flowScopeKey="

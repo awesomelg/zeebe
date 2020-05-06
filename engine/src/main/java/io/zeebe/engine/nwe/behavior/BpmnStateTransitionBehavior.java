@@ -7,6 +7,7 @@
  */
 package io.zeebe.engine.nwe.behavior;
 
+import io.zeebe.engine.metrics.WorkflowEngineMetrics;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.processor.KeyGenerator;
@@ -29,15 +30,19 @@ public final class BpmnStateTransitionBehavior {
   private final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
       processorLookUp;
 
+  private final WorkflowEngineMetrics metrics;
+
   public BpmnStateTransitionBehavior(
       final TypedStreamWriter streamWriter,
       final KeyGenerator keyGenerator,
       final BpmnStateBehavior stateBehavior,
+      final WorkflowEngineMetrics metrics,
       final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
           processorLookUp) {
     this.streamWriter = streamWriter;
     this.keyGenerator = keyGenerator;
     this.stateBehavior = stateBehavior;
+    this.metrics = metrics;
     this.processorLookUp = processorLookUp;
   }
 
@@ -52,6 +57,8 @@ public final class BpmnStateTransitionBehavior {
     stateBehavior.updateElementInstance(
         context,
         elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_ACTIVATED));
+
+    metrics.elementInstanceActivated(context.getBpmnElementType());
   }
 
   public void transitionToTerminating(final BpmnElementContext context) {
@@ -80,6 +87,8 @@ public final class BpmnStateTransitionBehavior {
     stateBehavior.updateElementInstance(
         context,
         elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_TERMINATED));
+
+    metrics.elementInstanceTerminated(context.getBpmnElementType());
   }
 
   public void transitionToCompleting(final BpmnElementContext context) {
@@ -104,6 +113,8 @@ public final class BpmnStateTransitionBehavior {
     stateBehavior.updateElementInstance(
         context,
         elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETED));
+
+    metrics.elementInstanceCompleted(context.getBpmnElementType());
   }
 
   private void transitionTo(final BpmnElementContext context, final WorkflowInstanceIntent intent) {
