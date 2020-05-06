@@ -26,7 +26,6 @@ public class MultiRaftProtocolConfig extends PrimitiveProtocolConfig<MultiRaftPr
 
   private String group;
   private Partitioner<String> partitioner = Partitioner.MURMUR3;
-  private ReadConsistency readConsistency = ReadConsistency.SEQUENTIAL;
   private Recovery recoveryStrategy = Recovery.RECOVER;
   private int maxRetries = 0;
 
@@ -87,26 +86,6 @@ public class MultiRaftProtocolConfig extends PrimitiveProtocolConfig<MultiRaftPr
    */
   public MultiRaftProtocolConfig setPartitioner(final Partitioner<String> partitioner) {
     this.partitioner = partitioner;
-    return this;
-  }
-
-  /**
-   * Returns the read consistency level.
-   *
-   * @return the read consistency level
-   */
-  public ReadConsistency getReadConsistency() {
-    return readConsistency;
-  }
-
-  /**
-   * Sets the read consistency level.
-   *
-   * @param readConsistency the read consistency level
-   * @return the Raft protocol configuration
-   */
-  public MultiRaftProtocolConfig setReadConsistency(final ReadConsistency readConsistency) {
-    this.readConsistency = readConsistency;
     return this;
   }
 

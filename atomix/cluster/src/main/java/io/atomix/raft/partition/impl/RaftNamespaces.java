@@ -18,7 +18,6 @@ package io.atomix.raft.partition.impl;
 
 import io.atomix.cluster.MemberId;
 import io.atomix.raft.RaftError;
-import io.atomix.raft.ReadConsistency;
 import io.atomix.raft.cluster.RaftMember;
 import io.atomix.raft.cluster.impl.DefaultRaftMember;
 import io.atomix.raft.protocol.AppendRequest;
@@ -77,10 +76,8 @@ public final class RaftNamespaces {
           .register(RaftResponse.Status.class)
           .register(RaftError.class)
           .register(RaftError.Type.class)
-          .register(ReadConsistency.class)
           .register(ConfigurationEntry.class)
           .register(InitializeEntry.class)
-          .register(ReadConsistency.class)
           .register(ArrayList.class)
           .register(LinkedList.class)
           .register(Collections.emptyList().getClass())
@@ -100,7 +97,6 @@ public final class RaftNamespaces {
           .nextId(Namespaces.BEGIN_USER_CUSTOM_ID + 100)
           .register(ConfigurationEntry.class)
           .register(InitializeEntry.class)
-          .register(ReadConsistency.class)
           .register(ArrayList.class)
           .register(HashSet.class)
           .register(DefaultRaftMember.class)

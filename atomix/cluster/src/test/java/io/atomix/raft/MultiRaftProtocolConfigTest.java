@@ -44,7 +44,6 @@ public class MultiRaftProtocolConfigTest {
 
     assertEquals("test", config.getGroup());
     assertSame(partitioner, config.getPartitioner());
-    assertEquals(ReadConsistency.LINEARIZABLE, config.getReadConsistency());
     assertEquals(Recovery.CLOSE, config.getRecoveryStrategy());
     assertEquals(5, config.getMaxRetries());
   }
