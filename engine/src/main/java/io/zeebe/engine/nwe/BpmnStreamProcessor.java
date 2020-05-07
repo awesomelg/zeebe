@@ -98,7 +98,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
 
     final ExecutableFlowElement element = getElement(recordValue, processor);
 
-    LOGGER.info(
+    LOGGER.debug(
         "[NEW] process workflow instance event [BPMN element type: {}, intent: {}]",
         bpmnElementType,
         intent);
@@ -109,7 +109,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
 
     if (processor == null) {
       // TODO (saig0): remove multi-instance fallback
-      LOGGER.info("[NEW] No processor found for BPMN element type '{}'", bpmnElementType);
+      LOGGER.debug("[NEW] No processor found for BPMN element type '{}'", bpmnElementType);
       fallback.accept(context.toStepContext());
       return;
     }
