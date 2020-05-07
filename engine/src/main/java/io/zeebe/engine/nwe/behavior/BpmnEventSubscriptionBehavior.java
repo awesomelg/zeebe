@@ -8,12 +8,15 @@
 package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.nwe.BpmnElementContext;
+import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.KeyGenerator;
 import io.zeebe.engine.processor.TypedStreamWriter;
 import io.zeebe.engine.processor.workflow.CatchEventBehavior;
+import io.zeebe.engine.processor.workflow.ExpressionProcessor.EvaluationException;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableActivity;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableBoundaryEvent;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableCatchEventSupplier;
+import io.zeebe.engine.processor.workflow.message.MessageCorrelationKeyException;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.instance.ElementInstance;
 import io.zeebe.engine.state.instance.ElementInstanceState;
@@ -23,6 +26,8 @@ import io.zeebe.engine.state.instance.StoredRecord.Purpose;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import io.zeebe.protocol.record.value.BpmnElementType;
+import io.zeebe.protocol.record.value.ErrorType;
+import io.zeebe.util.Either;
 import io.zeebe.util.buffer.BufferUtil;
 
 public final class BpmnEventSubscriptionBehavior {
@@ -136,10 +141,25 @@ public final class BpmnEventSubscriptionBehavior {
     stateBehavior.spawnToken(context);
   }
 
-  public <T extends ExecutableCatchEventSupplier> void subscribeToEvents(
+  public <T extends ExecutableCatchEventSupplier> Either<Failure, Void> subscribeToEvents(
       final T element, final BpmnElementContext context) {
-    // TODO (saig0): handle failures and return either
-    catchEventBehavior.subscribeToEvents(context.toStepContext(), element);
+
+    try {
+      catchEventBehavior.subscribeToEvents(context.toStepContext(), element);
+      return Either.right(null);
+
+    } catch (final MessageCorrelationKeyException e) {
+      return Either.left(
+          new Failure(
+              e.getMessage(),
+              ErrorType.EXTRACT_VALUE_ERROR,
+              e.getContext().getVariablesScopeKey()));
+
+    } catch (final EvaluationException e) {
+      return Either.left(
+          new Failure(
+              e.getMessage(), ErrorType.EXTRACT_VALUE_ERROR, context.getElementInstanceKey()));
+    }
   }
 
   public void unsubscribeFromEvents(final BpmnElementContext context) {

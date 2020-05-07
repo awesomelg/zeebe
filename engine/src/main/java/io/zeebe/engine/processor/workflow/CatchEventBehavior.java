@@ -300,7 +300,7 @@ public final class CatchEventBehavior {
             event.getTimerFactory().apply(expressionProcessor, key);
         if (timerOrError.isLeft()) {
           // todo(#4323): deal with this exceptional case without throwing an exception
-          throw new EvaluationException(timerOrError.getLeft().toString());
+          throw new EvaluationException(timerOrError.getLeft().getMessage());
         }
         evaluatedTimers.put(event.getId(), timerOrError.get());
       }

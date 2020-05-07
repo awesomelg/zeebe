@@ -11,8 +11,8 @@ import io.zeebe.el.Expression;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
-import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
@@ -49,16 +49,16 @@ public final class MultiInstanceBodyProcessor
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
   private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
   private final BpmnStateBehavior stateBehavior;
-  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
+  private final BpmnIncidentBehavior incidentBehavior;
   private final VariablesState variablesState;
 
   public MultiInstanceBodyProcessor(final BpmnBehaviors bpmnBehaviors) {
     stateTransitionBehavior = bpmnBehaviors.stateTransitionBehavior();
     eventSubscriptionBehavior = bpmnBehaviors.eventSubscriptionBehavior();
-    deferredRecordsBehavior = bpmnBehaviors.deferredRecordsBehavior();
     stateBehavior = bpmnBehaviors.stateBehavior();
     variablesState = stateBehavior.getVariablesState();
     expressionBehavior = bpmnBehaviors.expressionBehavior();
+    incidentBehavior = bpmnBehaviors.incidentBehavior();
   }
 
   @Override
@@ -76,10 +76,11 @@ public final class MultiInstanceBodyProcessor
       return;
     }
 
-    // TODO (saig0): handle exceptions on event subscribing
-    eventSubscriptionBehavior.subscribeToEvents(element, context);
-
-    stateTransitionBehavior.transitionToActivated(context);
+    eventSubscriptionBehavior
+        .subscribeToEvents(element, context)
+        .ifRightOrLeft(
+            ok -> stateTransitionBehavior.transitionToActivated(context),
+            failure -> incidentBehavior.createIncident(failure, context));
   }
 
   @Override

@@ -138,7 +138,7 @@ public final class TriggerTimerProcessor implements TypedRecordProcessor<TimerRe
       final String message =
           String.format(
               "Expected to reschedule repeating timer for element with id '%s', but an error occurred: %s",
-              BufferUtil.bufferAsString(event.getId()), timer.getLeft());
+              BufferUtil.bufferAsString(event.getId()), timer.getLeft().getMessage());
       throw new IllegalStateException(message);
       // todo(#4208): raise incident instead of throwing an exception
     }

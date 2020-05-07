@@ -42,8 +42,12 @@ public final class BpmnIncidentBehavior {
     }
   }
 
-  public void createIncident(
-      final Failure failure, final BpmnElementContext context, final long variableScopeKey) {
+  public void createIncident(final Failure failure, final BpmnElementContext context) {
+    final var variableScopeKey =
+        failure.getVariableScopeKey() > 0
+            ? failure.getVariableScopeKey()
+            : context.getElementInstanceKey();
+
     createIncident(failure.getErrorType(), failure.getMessage(), context, variableScopeKey);
   }
 

@@ -76,7 +76,7 @@ public final class ExpressionProcessor {
   public Either<Failure, String> evaluateStringExpression(
       final Expression expression, final long scopeKey) {
     return evaluateExpressionAsEither(expression, scopeKey)
-        .flatMap(result -> typeCheck(result, ResultType.STRING))
+        .flatMap(result -> typeCheck(result, ResultType.STRING, scopeKey))
         .map(EvaluationResult::getString);
   }
 
@@ -111,7 +111,7 @@ public final class ExpressionProcessor {
   public Either<Failure, Long> evaluateLongExpression(
       final Expression expression, final long scopeKey) {
     return evaluateExpressionAsEither(expression, scopeKey)
-        .flatMap(result -> typeCheck(result, ResultType.NUMBER))
+        .flatMap(result -> typeCheck(result, ResultType.NUMBER, scopeKey))
         .map(EvaluationResult::getNumber)
         .map(Number::longValue);
   }
@@ -146,7 +146,7 @@ public final class ExpressionProcessor {
   public Either<Failure, Boolean> evaluateBooleanExpression(
       final Expression expression, final long scopeKey) {
     return evaluateExpressionAsEither(expression, scopeKey)
-        .flatMap(result -> typeCheck(result, ResultType.BOOLEAN))
+        .flatMap(result -> typeCheck(result, ResultType.BOOLEAN, scopeKey))
         .map(EvaluationResult::getBoolean);
   }
 
@@ -321,14 +321,15 @@ public final class ExpressionProcessor {
   }
 
   private Either<Failure, EvaluationResult> typeCheck(
-      EvaluationResult result, final ResultType expectedResultType) {
+      final EvaluationResult result, final ResultType expectedResultType, final long scopeKey) {
     if (!result.getType().equals(expectedResultType)) {
       return Either.left(
           new Failure(
               String.format(
                   "Expected result of the expression '%s' to be '%s', but was '%s'.",
                   result.getExpression(), expectedResultType, result.getType()),
-              ErrorType.EXTRACT_VALUE_ERROR));
+              ErrorType.EXTRACT_VALUE_ERROR,
+              scopeKey));
     }
     return Either.right(result);
   }
@@ -351,19 +352,15 @@ public final class ExpressionProcessor {
       final Expression expression, final long variableScopeKey) {
     final var result = evaluateExpression(expression, variableScopeKey);
     return result.isFailure()
-        ? Either.left(new Failure(result.getFailureMessage(), ErrorType.EXTRACT_VALUE_ERROR))
+        ? Either.left(
+            new Failure(
+                result.getFailureMessage(), ErrorType.EXTRACT_VALUE_ERROR, variableScopeKey))
         : Either.right(result);
   }
 
   private DirectBuffer wrapResult(final String result) {
     resultView.wrap(result.getBytes());
     return resultView;
-  }
-
-  @FunctionalInterface
-  public interface VariablesLookup {
-
-    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 
   public static final class EvaluationException extends RuntimeException {
@@ -423,5 +420,11 @@ public final class ExpressionProcessor {
 
       return lookup.getVariable(variableScopeKey, variableNameBuffer);
     }
+  }
+
+  @FunctionalInterface
+  public interface VariablesLookup {
+
+    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 }

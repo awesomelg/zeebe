@@ -80,7 +80,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
                   record,
                   WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
             },
-            failure -> incidentBehavior.createIncident(failure, context, scopeKey));
+            failure -> incidentBehavior.createIncident(failure, context));
   }
 
   @Override
@@ -176,6 +176,10 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
     if (element.getDefaultFlow() != null) {
       return Either.right(element.getDefaultFlow());
     }
-    return Either.left(new Failure(NO_OUTGOING_FLOW_CHOSEN_ERROR, ErrorType.CONDITION_ERROR));
+    return Either.left(
+        new Failure(
+            NO_OUTGOING_FLOW_CHOSEN_ERROR,
+            ErrorType.CONDITION_ERROR,
+            context.getElementInstanceKey()));
   }
 }

@@ -18,15 +18,12 @@ import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
-import io.zeebe.engine.processor.workflow.ExpressionProcessor.EvaluationException;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableServiceTask;
 import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
-import io.zeebe.engine.processor.workflow.message.MessageCorrelationKeyException;
 import io.zeebe.engine.state.instance.JobState.State;
 import io.zeebe.msgpack.value.DocumentValue;
 import io.zeebe.protocol.impl.record.value.job.JobRecord;
 import io.zeebe.protocol.record.intent.JobIntent;
-import io.zeebe.protocol.record.value.ErrorType;
 import io.zeebe.util.Either;
 
 public final class ServiceTaskProcessor implements BpmnElementProcessor<ExecutableServiceTask> {
@@ -65,22 +62,11 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
       return;
     }
 
-    try {
-      eventSubscriptionBehavior.subscribeToEvents(element, context);
-    } catch (final MessageCorrelationKeyException e) {
-      incidentBehavior.createIncident(
-          ErrorType.EXTRACT_VALUE_ERROR,
-          e.getMessage(),
-          context,
-          e.getContext().getVariablesScopeKey());
-      return;
-    } catch (final EvaluationException e) {
-      incidentBehavior.createIncident(
-          ErrorType.EXTRACT_VALUE_ERROR, e.getMessage(), context, context.getElementInstanceKey());
-      return;
-    }
-
-    stateTransitionBehavior.transitionToActivated(context);
+    eventSubscriptionBehavior
+        .subscribeToEvents(element, context)
+        .ifRightOrLeft(
+            ok -> stateTransitionBehavior.transitionToActivated(context),
+            failure -> incidentBehavior.createIncident(failure, context));
   }
 
   @Override
@@ -93,7 +79,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
             jobType -> expressionBehavior.evaluateLongExpression(element.getRetries(), scopeKey))
         .ifRightOrLeft(
             retries -> createNewJob(context, element, jobTypeOrFailure.get(), retries.intValue()),
-            failure -> incidentBehavior.createIncident(failure, context, scopeKey));
+            failure -> incidentBehavior.createIncident(failure, context));
   }
 
   @Override
