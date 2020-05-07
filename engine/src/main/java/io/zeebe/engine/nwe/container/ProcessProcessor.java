@@ -10,7 +10,7 @@ package io.zeebe.engine.nwe.container;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
-import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElementContainer;
@@ -21,12 +21,12 @@ public final class ProcessProcessor
 
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
-  private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
+  private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
 
   public ProcessProcessor(final BpmnBehaviors bpmnBehaviors) {
     stateBehavior = bpmnBehaviors.stateBehavior();
     stateTransitionBehavior = bpmnBehaviors.stateTransitionBehavior();
-    deferredRecordsBehavior = bpmnBehaviors.deferredRecordsBehavior();
+    eventSubscriptionBehavior = bpmnBehaviors.eventSubscriptionBehavior();
   }
 
   @Override
@@ -50,8 +50,8 @@ public final class ProcessProcessor
         && stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
       stateTransitionBehavior.transitionToTerminated(flowScopeContext);
 
-    } else if (stateBehavior.isInterrupted(flowScopeContext)) {
-      deferredRecordsBehavior.publishInterruptingEvent(childContext);
+    } else {
+      eventSubscriptionBehavior.publishTriggeredEventSubProcess(flowScopeContext);
     }
   }
 

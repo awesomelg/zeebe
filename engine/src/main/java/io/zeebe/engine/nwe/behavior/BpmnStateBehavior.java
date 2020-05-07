@@ -103,17 +103,6 @@ public final class BpmnStateBehavior {
     return elementInstanceState.getInstance(context.getFlowScopeKey());
   }
 
-  // TODO (saig0): move to event related behavior
-  public boolean isInterrupted(final BpmnElementContext context) {
-    // from ElementTerminatedHandler
-    final var elementInstance = getElementInstance(context);
-
-    return elementInstance != null
-        && elementInstance.getNumberOfActiveTokens() == 2
-        && elementInstance.isInterrupted()
-        && elementInstance.isActive();
-  }
-
   public void removeInstance(final BpmnElementContext context) {
     eventScopeInstanceState.deleteInstance(context.getElementInstanceKey());
     elementInstanceState.removeInstance(context.getElementInstanceKey());
@@ -135,14 +124,13 @@ public final class BpmnStateBehavior {
         WorkflowInstanceIntent.ELEMENT_ACTIVATING);
   }
 
-  // TODO (saig0): move to event related behavior
-  public void createBoundaryInstance(
+  public void createElementInstanceInFlowScope(
       final BpmnElementContext context,
-      final long boundaryInstanceKey,
+      final long elementInstanceKey,
       final WorkflowInstanceRecord record) {
     final ElementInstance flowScopeInstance = getFlowScopeInstance(context);
     elementInstanceState.newInstance(
-        flowScopeInstance, boundaryInstanceKey, record, WorkflowInstanceIntent.ELEMENT_ACTIVATING);
+        flowScopeInstance, elementInstanceKey, record, WorkflowInstanceIntent.ELEMENT_ACTIVATING);
   }
 
   public void setLocalVariable(
@@ -182,10 +170,5 @@ public final class BpmnStateBehavior {
   public BpmnElementContext getFlowScopeContext(final BpmnElementContext context) {
     final var flowScope = getFlowScopeInstance(context);
     return context.copy(flowScope.getKey(), flowScope.getValue(), flowScope.getState());
-  }
-
-  // TODO (saig0): move to event related behavior
-  public void deleteTrigger(final long eventScopeKey, final long eventKey) {
-    eventScopeInstanceState.deleteTrigger(eventScopeKey, eventKey);
   }
 }

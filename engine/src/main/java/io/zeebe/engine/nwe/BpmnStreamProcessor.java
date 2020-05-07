@@ -12,6 +12,7 @@ import io.zeebe.engine.metrics.WorkflowEngineMetrics;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviorsImpl;
 import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
@@ -59,21 +60,29 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
     this.fallback = fallback;
 
     final var stateBehavior = new BpmnStateBehavior(zeebeState, streamWriterProxy);
+    final var stateTransitionBehavior =
+        new BpmnStateTransitionBehavior(
+            streamWriterProxy,
+            zeebeState.getKeyGenerator(),
+            stateBehavior,
+            new WorkflowEngineMetrics(zeebeState.getPartitionId()),
+            this::getContainerProcessor);
+
     final BpmnBehaviors bpmnBehaviors =
         new BpmnBehaviorsImpl(
             expressionProcessor,
             ioMappingHelper,
-            catchEventBehavior,
+            new BpmnEventSubscriptionBehavior(
+                stateBehavior,
+                stateTransitionBehavior,
+                catchEventBehavior,
+                streamWriterProxy,
+                zeebeState),
             new BpmnIncidentBehavior(zeebeState, streamWriterProxy),
             stateBehavior,
-            new BpmnStateTransitionBehavior(
-                streamWriterProxy,
-                zeebeState.getKeyGenerator(),
-                stateBehavior,
-                new WorkflowEngineMetrics(zeebeState.getPartitionId()),
-                this::getContainerProcessor),
+            stateTransitionBehavior,
             streamWriterProxy,
-            new BpmnDeferredRecordsBehavior(zeebeState, streamWriterProxy, stateBehavior));
+            new BpmnDeferredRecordsBehavior(zeebeState));
 
     processors = new BpmnElementProcessors(bpmnBehaviors);
     context = new BpmnElementContextImpl(zeebeState);

@@ -69,12 +69,16 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
         .ifRightOrLeft(
             sequenceFlow -> {
               stateTransitionBehavior.transitionToActivated(context);
+
               // defer sequence flow taken, as it will only be taken when the gateway is completed
               record.wrap(context.getRecordValue());
               record.setElementId(sequenceFlow.getId());
               record.setBpmnElementType(BpmnElementType.SEQUENCE_FLOW);
               deferredRecordsBehavior.deferNewRecord(
-                  scopeKey, record, WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
+                  context,
+                  context.getElementInstanceKey(),
+                  record,
+                  WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
             },
             failure -> incidentBehavior.createIncident(failure, context, scopeKey));
   }
@@ -101,7 +105,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
         .map(record -> getOutgoingSequenceFlow(element, context, record))
         .ifPresentOrElse(
             sequenceFlow -> stateTransitionBehavior.takeSequenceFlow(context, sequenceFlow),
-            () -> stateTransitionBehavior.onCompleted(element, context));
+            () -> stateTransitionBehavior.onElementCompleted(element, context));
 
     stateBehavior.consumeToken(context);
     stateBehavior.removeInstance(context);
@@ -119,7 +123,7 @@ public class ExclusiveGatewayProcessor implements BpmnElementProcessor<Executabl
 
     incidentBehavior.resolveIncidents(context);
 
-    stateTransitionBehavior.onTerminated(element, context);
+    stateTransitionBehavior.onElementTerminated(element, context);
 
     stateBehavior.consumeToken(context);
     stateBehavior.removeInstance(context);

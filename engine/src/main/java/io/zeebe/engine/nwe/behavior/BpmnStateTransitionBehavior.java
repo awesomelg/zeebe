@@ -16,8 +16,6 @@ import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlo
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowNode;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableSequenceFlow;
 import io.zeebe.engine.state.instance.ElementInstance;
-import io.zeebe.engine.state.instance.EventTrigger;
-import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import io.zeebe.protocol.record.value.BpmnElementType;
 import java.util.function.Function;
@@ -53,12 +51,38 @@ public final class BpmnStateTransitionBehavior {
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_ACTIVATED);
 
-    // TODO (saig0): update state because of the step guards
+    // update state because of the step guards
     stateBehavior.updateElementInstance(
         context,
         elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_ACTIVATED));
 
     metrics.elementInstanceActivated(context.getBpmnElementType());
+  }
+
+  public void transitionToCompleting(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETING, context);
+    }
+
+    transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETING);
+
+    stateBehavior.updateElementInstance(
+        context,
+        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETING));
+  }
+
+  public void transitionToCompleted(final BpmnElementContext context) {
+    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING) {
+      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETED, context);
+    }
+
+    transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETED);
+
+    stateBehavior.updateElementInstance(
+        context,
+        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETED));
+
+    metrics.elementInstanceCompleted(context.getBpmnElementType());
   }
 
   public void transitionToTerminating(final BpmnElementContext context) {
@@ -89,32 +113,6 @@ public final class BpmnStateTransitionBehavior {
         elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_TERMINATED));
 
     metrics.elementInstanceTerminated(context.getBpmnElementType());
-  }
-
-  public void transitionToCompleting(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED) {
-      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETING, context);
-    }
-
-    transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETING);
-
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETING));
-  }
-
-  public void transitionToCompleted(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING) {
-      throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETED, context);
-    }
-
-    transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETED);
-
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETED));
-
-    metrics.elementInstanceCompleted(context.getBpmnElementType());
   }
 
   private void transitionTo(final BpmnElementContext context, final WorkflowInstanceIntent intent) {
@@ -156,23 +154,9 @@ public final class BpmnStateTransitionBehavior {
     streamWriter.appendNewEvent(
         childInstanceKey, WorkflowInstanceIntent.ELEMENT_ACTIVATING, childInstanceRecord);
 
+    stateBehavior.updateElementInstance(context, ElementInstance::spawnToken);
+
     return stateBehavior.createChildElementInstance(context, childInstanceKey, childInstanceRecord);
-  }
-
-  // TODO (saig0): move to event related behavior?
-  public long activateBoundaryInstance(
-      final BpmnElementContext context,
-      final WorkflowInstanceRecord record,
-      final EventTrigger event) {
-
-    final var boundaryInstanceKey = keyGenerator.nextKey();
-    streamWriter.appendNewEvent(
-        boundaryInstanceKey, WorkflowInstanceIntent.ELEMENT_ACTIVATING, record);
-    stateBehavior.createBoundaryInstance(context, boundaryInstanceKey, record);
-
-    stateBehavior.spawnToken(context);
-
-    return boundaryInstanceKey;
   }
 
   public <T extends ExecutableFlowNode> void takeOutgoingSequenceFlows(
@@ -181,14 +165,14 @@ public final class BpmnStateTransitionBehavior {
     final var outgoingSequenceFlows = element.getOutgoing();
     if (outgoingSequenceFlows.isEmpty()) {
       // behaves like an implicit end event
-      onCompleted(element, context);
+      onElementCompleted(element, context);
 
     } else {
       outgoingSequenceFlows.forEach(sequenceFlow -> takeSequenceFlow(context, sequenceFlow));
     }
   }
 
-  public void onCompleted(
+  public void onElementCompleted(
       final ExecutableFlowElement element, final BpmnElementContext childContext) {
 
     final var flowScope = element.getFlowScope();
@@ -198,7 +182,7 @@ public final class BpmnStateTransitionBehavior {
     flowScopeProcessor.onChildCompleted(flowScope, flowScopeContext, childContext);
   }
 
-  public void onTerminated(
+  public void onElementTerminated(
       final ExecutableFlowElement element, final BpmnElementContext childContext) {
 
     final var flowScope = element.getFlowScope();

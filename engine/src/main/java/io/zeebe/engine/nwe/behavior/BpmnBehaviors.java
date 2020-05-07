@@ -8,7 +8,6 @@
 package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.processor.TypedCommandWriter;
-import io.zeebe.engine.processor.workflow.CatchEventBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 
@@ -18,7 +17,7 @@ public interface BpmnBehaviors {
 
   IOMappingHelper variableMappingBehavior();
 
-  CatchEventBehavior eventSubscriptionBehavior();
+  BpmnEventSubscriptionBehavior eventSubscriptionBehavior();
 
   BpmnIncidentBehavior incidentBehavior();
 

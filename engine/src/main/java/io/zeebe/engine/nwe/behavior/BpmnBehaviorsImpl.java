@@ -9,7 +9,6 @@ package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.TypedStreamWriter;
-import io.zeebe.engine.processor.workflow.CatchEventBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 
@@ -17,7 +16,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
 
   private final ExpressionProcessor expressionBehavior;
   private final IOMappingHelper variableMappingBehavior;
-  private final CatchEventBehavior eventSubscriptionBehavior;
+  private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
   private final BpmnIncidentBehavior incidentBehavior;
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
@@ -27,7 +26,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   public BpmnBehaviorsImpl(
       final ExpressionProcessor expressionBehavior,
       final IOMappingHelper variableMappingBehavior,
-      final CatchEventBehavior eventSubscriptionBehavior,
+      final BpmnEventSubscriptionBehavior eventSubscriptionBehavior,
       final BpmnIncidentBehavior incidentBehavior,
       final BpmnStateBehavior stateBehavior,
       final BpmnStateTransitionBehavior stateTransitionBehavior,
@@ -54,7 +53,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   }
 
   @Override
-  public CatchEventBehavior eventSubscriptionBehavior() {
+  public BpmnEventSubscriptionBehavior eventSubscriptionBehavior() {
     return eventSubscriptionBehavior;
   }
 

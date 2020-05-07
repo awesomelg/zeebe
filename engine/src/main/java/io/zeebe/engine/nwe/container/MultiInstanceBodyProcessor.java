@@ -12,9 +12,9 @@ import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
 import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
-import io.zeebe.engine.processor.workflow.CatchEventBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableMultiInstanceBody;
 import io.zeebe.engine.state.instance.VariablesState;
@@ -47,7 +47,7 @@ public final class MultiInstanceBodyProcessor
 
   private final ExpressionProcessor expressionBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
-  private final CatchEventBehavior eventSubscriptionBehavior;
+  private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
   private final BpmnStateBehavior stateBehavior;
   private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
   private final VariablesState variablesState;
@@ -77,7 +77,7 @@ public final class MultiInstanceBodyProcessor
     }
 
     // TODO (saig0): handle exceptions on event subscribing
-    eventSubscriptionBehavior.subscribeToEvents(context.toStepContext(), element);
+    eventSubscriptionBehavior.subscribeToEvents(element, context);
 
     stateTransitionBehavior.transitionToActivated(context);
   }
@@ -117,8 +117,7 @@ public final class MultiInstanceBodyProcessor
   public void onCompleting(
       final ExecutableMultiInstanceBody element, final BpmnElementContext context) {
 
-    eventSubscriptionBehavior.unsubscribeFromEvents(
-        context.getElementInstanceKey(), context.toStepContext());
+    eventSubscriptionBehavior.unsubscribeFromEvents(context);
 
     element
         .getLoopCharacteristics()
@@ -167,7 +166,6 @@ public final class MultiInstanceBodyProcessor
 
     // update loop counters
     final var bodyInstance = stateBehavior.getElementInstance(context);
-    bodyInstance.spawnToken();
     bodyInstance.incrementMultiInstanceLoopCounter();
     stateBehavior.updateElementInstance(bodyInstance);
 
@@ -278,8 +276,8 @@ public final class MultiInstanceBodyProcessor
         && stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
       stateTransitionBehavior.transitionToTerminated(flowScopeContext);
 
-    } else if (stateBehavior.isInterrupted(flowScopeContext)) {
-      deferredRecordsBehavior.publishInterruptingEvent(childContext);
+    } else {
+      eventSubscriptionBehavior.publishTriggeredEventSubProcess(flowScopeContext);
     }
   }
 
