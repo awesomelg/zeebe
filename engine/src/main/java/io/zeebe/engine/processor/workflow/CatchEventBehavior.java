@@ -275,6 +275,7 @@ public final class CatchEventBehavior {
     extractedCorrelationKeys.clear();
 
     // TODO (saig0): extract logic to resolve the variable scope key
+    //  see BpmnIncidentBehavior
     for (final ExecutableCatchEvent event : events) {
       if (event.isMessage()) {
         final MessageCorrelationKeyContext context =

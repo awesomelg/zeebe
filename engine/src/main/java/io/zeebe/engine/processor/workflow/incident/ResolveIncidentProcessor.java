@@ -131,88 +131,7 @@ public final class ResolveIncidentProcessor implements TypedRecordProcessor<Inci
 
   // TODO (saig0): need to pass the record properties for the new BPMN element processor
   private TypedRecord<WorkflowInstanceRecord> createRecord(final IndexedRecord failedRecord) {
-    return new TypedRecord<>() {
-
-      @Override
-      public String toJson() {
-        return null;
-      }
-
-      @Override
-      public long getPosition() {
-        return 0;
-      }
-
-      @Override
-      public long getSourceRecordPosition() {
-        return 0;
-      }
-
-      @Override
-      public long getTimestamp() {
-        return 0;
-      }
-
-      @Override
-      public Intent getIntent() {
-        return failedRecord.getState();
-      }
-
-      @Override
-      public int getPartitionId() {
-        return 0;
-      }
-
-      @Override
-      public RecordType getRecordType() {
-        return null;
-      }
-
-      @Override
-      public RejectionType getRejectionType() {
-        return null;
-      }
-
-      @Override
-      public String getRejectionReason() {
-        return null;
-      }
-
-      @Override
-      public ValueType getValueType() {
-        return null;
-      }
-
-      @Override
-      public long getKey() {
-        return failedRecord.getKey();
-      }
-
-      @Override
-      public WorkflowInstanceRecord getValue() {
-        return failedRecord.getValue();
-      }
-
-      @Override
-      public int getRequestStreamId() {
-        return 0;
-      }
-
-      @Override
-      public long getRequestId() {
-        return 0;
-      }
-
-      @Override
-      public long getLength() {
-        return 0;
-      }
-
-      @Override
-      public Record<WorkflowInstanceRecord> clone() {
-        return this;
-      }
-    };
+    return new IncidentRecordWrapper(failedRecord);
   }
 
   private void attemptToSolveJobIncident(final long jobKey, final TypedStreamWriter streamWriter) {
@@ -227,6 +146,95 @@ public final class ResolveIncidentProcessor implements TypedRecordProcessor<Inci
     } else if (state == State.ERROR_THROWN) {
       // try to throw the error again
       jobErrorThrownProcessor.processRecord(jobKey, job, streamWriter);
+    }
+  }
+
+  private static final class IncidentRecordWrapper implements TypedRecord<WorkflowInstanceRecord> {
+
+    private final IndexedRecord failedRecord;
+
+    public IncidentRecordWrapper(final IndexedRecord failedRecord) {
+      this.failedRecord = failedRecord;
+    }
+
+    @Override
+    public String toJson() {
+      return null;
+    }
+
+    @Override
+    public long getPosition() {
+      return 0;
+    }
+
+    @Override
+    public long getSourceRecordPosition() {
+      return 0;
+    }
+
+    @Override
+    public long getTimestamp() {
+      return 0;
+    }
+
+    @Override
+    public Intent getIntent() {
+      return failedRecord.getState();
+    }
+
+    @Override
+    public int getPartitionId() {
+      return 0;
+    }
+
+    @Override
+    public RecordType getRecordType() {
+      return null;
+    }
+
+    @Override
+    public RejectionType getRejectionType() {
+      return null;
+    }
+
+    @Override
+    public String getRejectionReason() {
+      return null;
+    }
+
+    @Override
+    public ValueType getValueType() {
+      return null;
+    }
+
+    @Override
+    public long getKey() {
+      return failedRecord.getKey();
+    }
+
+    @Override
+    public WorkflowInstanceRecord getValue() {
+      return failedRecord.getValue();
+    }
+
+    @Override
+    public int getRequestStreamId() {
+      return 0;
+    }
+
+    @Override
+    public long getRequestId() {
+      return 0;
+    }
+
+    @Override
+    public long getLength() {
+      return 0;
+    }
+
+    @Override
+    public Record<WorkflowInstanceRecord> clone() {
+      return this;
     }
   }
 }

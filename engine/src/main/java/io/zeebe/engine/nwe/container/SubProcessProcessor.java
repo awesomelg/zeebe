@@ -35,7 +35,8 @@ public final class SubProcessProcessor
       final BpmnElementContext flowScopeContext,
       final BpmnElementContext childContext) {
 
-    // TODO (saig0): consume token before calling
+    // TODO (saig0): consume token before calling,
+    //  this can be done when the rest of this processor is implemented
     if (stateBehavior.isLastActiveExecutionPathInScope(childContext)) {
       stateTransitionBehavior.transitionToCompleting(flowScopeContext);
     }

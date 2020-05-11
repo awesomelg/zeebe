@@ -58,6 +58,7 @@ public final class BpmnIncidentBehavior {
       final long variableScopeKey) {
 
     // TODO (saig0): the variable scope key should be resolved on a central place
+    //  This currently also happens in BpmnVariableMappingBehavior and CatchEventBehavior
 
     incidentCommand.reset();
     incidentCommand

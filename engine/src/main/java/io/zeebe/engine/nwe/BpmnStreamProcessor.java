@@ -58,7 +58,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
     workflowState = zeebeState.getWorkflowState();
     this.fallback = fallback;
 
-    final var stateBehavior = new BpmnStateBehavior(zeebeState, streamWriterProxy);
+    final var stateBehavior = new BpmnStateBehavior(zeebeState);
     final var stateTransitionBehavior =
         new BpmnStateTransitionBehavior(
             streamWriterProxy,
@@ -67,6 +67,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
             new WorkflowEngineMetrics(zeebeState.getPartitionId()),
             this::getContainerProcessor);
 
+    // todo (@korthout): move composition into constructor of BpmnBhaviorsImpl
     final BpmnBehaviors bpmnBehaviors =
         new BpmnBehaviorsImpl(
             expressionProcessor,

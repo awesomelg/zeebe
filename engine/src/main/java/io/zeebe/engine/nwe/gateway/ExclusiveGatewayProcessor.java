@@ -134,7 +134,9 @@ public final class ExclusiveGatewayProcessor
   public void onEventOccurred(
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
     throw new UnsupportedOperationException(
-        "expected to handle occurred event on exclusive gateway, but events should not occur on exclusive gateway");
+        String.format(
+            "expected to handle occurred event on exclusive gateway, but events should not occur on exclusive gateway. [context: %s]",
+            context.toString()));
   }
 
   private ExecutableSequenceFlow getOutgoingSequenceFlow(

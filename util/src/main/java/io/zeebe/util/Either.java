@@ -183,7 +183,6 @@ public interface Either<L, R> {
 
     @Override
     public <T> Either<L, T> map(final Function<? super R, ? extends T> right) {
-      // todo(@korthout): consider a lazy evaluated implementation
       return Either.right(right.apply(this.value));
     }
 

@@ -27,17 +27,12 @@ public final class BpmnStateBehavior {
   private final VariablesState variablesState;
   private final JobState jobState;
 
-  // todo: restrict this class to only deal with state
-  private final TypesStreamWriterProxy streamWriter;
-
-  public BpmnStateBehavior(
-      final ZeebeState zeebeState, final TypesStreamWriterProxy streamWriterProxy) {
+  public BpmnStateBehavior(final ZeebeState zeebeState) {
     final var workflowState = zeebeState.getWorkflowState();
     elementInstanceState = workflowState.getElementInstanceState();
     eventScopeInstanceState = workflowState.getEventScopeInstanceState();
     variablesState = elementInstanceState.getVariablesState();
     jobState = zeebeState.getJobState();
-    streamWriter = streamWriterProxy;
   }
 
   public ElementInstance getElementInstance(final BpmnElementContext context) {
@@ -108,6 +103,8 @@ public final class BpmnStateBehavior {
     elementInstanceState.removeInstance(context.getElementInstanceKey());
   }
 
+  // todo(@korthout): remove this method
+  //  we should restrict what can be done to the state
   public VariablesState getVariablesState() {
     return variablesState;
   }

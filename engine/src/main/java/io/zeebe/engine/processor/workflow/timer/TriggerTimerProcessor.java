@@ -92,7 +92,6 @@ public final class TriggerTimerProcessor implements TypedRecordProcessor<TimerRe
     if (isTriggered) {
       streamWriter.appendFollowUpEvent(record.getKey(), TimerIntent.TRIGGERED, timer);
 
-      // todo(npepinpe): migrate to bpmn step processor
       if (shouldReschedule(timer)) {
         rescheduleTimer(timer, streamWriter, catchEvent);
       }

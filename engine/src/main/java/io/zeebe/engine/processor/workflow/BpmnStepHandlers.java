@@ -231,7 +231,6 @@ public final class BpmnStepHandlers {
     final BpmnStep step = flowElement.getStep(state);
 
     if (step == BpmnStep.BPMN_ELEMENT_PROCESSOR) {
-      // TODO (saig0): hack the new BPMN element processor in
       bpmnStreamProcessor.processRecord(
           context.getRecord(),
           context.getOutput().getResponseWriter(),
