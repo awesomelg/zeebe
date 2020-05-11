@@ -15,11 +15,11 @@ import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnVariableMappingBehavior;
 import io.zeebe.engine.processor.Failure;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableServiceTask;
-import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 import io.zeebe.engine.state.instance.JobState.State;
 import io.zeebe.msgpack.value.DocumentValue;
 import io.zeebe.protocol.impl.record.value.job.JobRecord;
@@ -30,22 +30,22 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   private final JobRecord jobCommand = new JobRecord().setVariables(DocumentValue.EMPTY_DOCUMENT);
 
-  private final IOMappingHelper variableMappingBehavior;
   private final ExpressionProcessor expressionBehavior;
   private final TypedCommandWriter commandWriter;
   private final BpmnIncidentBehavior incidentBehavior;
   private final BpmnStateBehavior stateBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
+  private final BpmnVariableMappingBehavior variableMappingBehavior;
   private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
 
   public ServiceTaskProcessor(final BpmnBehaviors behaviors) {
-    variableMappingBehavior = behaviors.variableMappingBehavior();
     eventSubscriptionBehavior = behaviors.eventSubscriptionBehavior();
     expressionBehavior = behaviors.expressionBehavior();
     commandWriter = behaviors.commandWriter();
     incidentBehavior = behaviors.incidentBehavior();
     stateBehavior = behaviors.stateBehavior();
     stateTransitionBehavior = behaviors.stateTransitionBehavior();
+    variableMappingBehavior = behaviors.variableMappingBehavior();
   }
 
   @Override
@@ -55,15 +55,9 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivating(final ExecutableServiceTask element, final BpmnElementContext context) {
-
-    // TODO (saig0): migrate to Either types
-    final var success = variableMappingBehavior.applyInputMappings(context.toStepContext());
-    if (!success) {
-      return;
-    }
-
-    eventSubscriptionBehavior
-        .subscribeToEvents(element, context)
+    variableMappingBehavior
+        .applyInputMappings(context, element)
+        .flatMap(ok -> eventSubscriptionBehavior.subscribeToEvents(element, context))
         .ifRightOrLeft(
             ok -> stateTransitionBehavior.transitionToActivated(context),
             failure -> incidentBehavior.createIncident(failure, context));
@@ -91,14 +85,14 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
       return;
     }
 
-    final var success = variableMappingBehavior.applyOutputMappings(context.toStepContext());
-    if (!success) {
-      return;
-    }
-
-    eventSubscriptionBehavior.unsubscribeFromEvents(context);
-
-    stateTransitionBehavior.transitionToCompleted(context);
+    variableMappingBehavior
+        .applyOutputMappings(context, element)
+        .ifRightOrLeft(
+            ok -> {
+              eventSubscriptionBehavior.unsubscribeFromEvents(context);
+              stateTransitionBehavior.transitionToCompleted(context);
+            },
+            failure -> incidentBehavior.createIncident(failure, context));
   }
 
   @Override

@@ -16,7 +16,7 @@ import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceReco
 import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import java.util.List;
 
-public class BpmnDeferredRecordsBehavior {
+public final class BpmnDeferredRecordsBehavior {
 
   private final ElementInstanceState elementInstanceState;
 

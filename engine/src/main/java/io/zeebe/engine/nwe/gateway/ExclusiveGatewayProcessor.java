@@ -28,7 +28,8 @@ import io.zeebe.protocol.record.value.BpmnElementType;
 import io.zeebe.protocol.record.value.ErrorType;
 import io.zeebe.util.Either;
 
-public class ExclusiveGatewayProcessor implements BpmnElementProcessor<ExecutableExclusiveGateway> {
+public final class ExclusiveGatewayProcessor
+    implements BpmnElementProcessor<ExecutableExclusiveGateway> {
 
   private static final String NO_OUTGOING_FLOW_CHOSEN_ERROR =
       "Expected at least one condition to evaluate to true, or to have a default flow";

@@ -9,13 +9,12 @@ package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
-import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 
 public interface BpmnBehaviors {
 
   ExpressionProcessor expressionBehavior();
 
-  IOMappingHelper variableMappingBehavior();
+  BpmnVariableMappingBehavior variableMappingBehavior();
 
   BpmnEventSubscriptionBehavior eventSubscriptionBehavior();
 

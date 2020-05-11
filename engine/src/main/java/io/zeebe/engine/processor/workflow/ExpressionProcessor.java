@@ -289,6 +289,23 @@ public final class ExpressionProcessor {
         .map(EvaluationResult::toBuffer);
   }
 
+  /**
+   * Evaluates the given expression of a variable mapping and returns the result as buffer. If the
+   * evaluation fails or the result is not a context then a failure is returned.
+   *
+   * @param expression the expression to evaluate
+   * @param scopeKey the scope to load the variables from (a negative key is intended to imply an
+   *     empty variable context)
+   * @return either the evaluation result as buffer, or a failure
+   */
+  public Either<Failure, DirectBuffer> evaluateVariableMappingExpression(
+      final Expression expression, final long scopeKey) {
+    return evaluateExpressionAsEither(expression, scopeKey)
+        .flatMap(result -> typeCheck(result, ResultType.OBJECT, scopeKey))
+        .mapLeft(failure -> new Failure(failure.getMessage(), ErrorType.IO_MAPPING_ERROR, scopeKey))
+        .map(EvaluationResult::toBuffer);
+  }
+
   private Optional<EvaluationResult> failureCheck(
       final EvaluationResult result, final ErrorType errorType, final BpmnStepContext<?> context) {
 
@@ -363,6 +380,12 @@ public final class ExpressionProcessor {
     return resultView;
   }
 
+  @FunctionalInterface
+  public interface VariablesLookup {
+
+    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
+  }
+
   public static final class EvaluationException extends RuntimeException {
     public EvaluationException(final String message) {
       super(message);
@@ -420,11 +443,5 @@ public final class ExpressionProcessor {
 
       return lookup.getVariable(variableScopeKey, variableNameBuffer);
     }
-  }
-
-  @FunctionalInterface
-  public interface VariablesLookup {
-
-    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 }

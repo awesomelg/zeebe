@@ -11,7 +11,6 @@ import io.zeebe.engine.nwe.BpmnStreamProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.BpmnStep;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
 import io.zeebe.engine.processor.workflow.handlers.CatchEventSubscriber;
-import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 import io.zeebe.engine.processor.workflow.handlers.IncidentResolver;
 import io.zeebe.engine.processor.workflow.handlers.activity.ActivityElementActivatingHandler;
 import io.zeebe.engine.processor.workflow.handlers.activity.ActivityElementCompletingHandler;
@@ -223,12 +222,7 @@ public final class BpmnStepHandlers {
 
     // ---------- new -----------------
     bpmnStreamProcessor =
-        new BpmnStreamProcessor(
-            expressionProcessor,
-            new IOMappingHelper(expressionProcessor),
-            catchEventBehavior,
-            state,
-            this::handle);
+        new BpmnStreamProcessor(expressionProcessor, catchEventBehavior, state, this::handle);
   }
 
   public void handle(final BpmnStepContext context) {

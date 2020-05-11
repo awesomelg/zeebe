@@ -16,6 +16,7 @@ import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
 import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
+import io.zeebe.engine.nwe.behavior.BpmnVariableMappingBehavior;
 import io.zeebe.engine.nwe.behavior.TypesStreamWriterProxy;
 import io.zeebe.engine.processor.SideEffectProducer;
 import io.zeebe.engine.processor.TypedRecord;
@@ -27,7 +28,6 @@ import io.zeebe.engine.processor.workflow.CatchEventBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableMultiInstanceBody;
-import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.deployment.WorkflowState;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
@@ -51,7 +51,6 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
 
   public BpmnStreamProcessor(
       final ExpressionProcessor expressionProcessor,
-      final IOMappingHelper ioMappingHelper,
       final CatchEventBehavior catchEventBehavior,
       final ZeebeState zeebeState,
       final Consumer<BpmnStepContext<?>> fallback) {
@@ -71,7 +70,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
     final BpmnBehaviors bpmnBehaviors =
         new BpmnBehaviorsImpl(
             expressionProcessor,
-            ioMappingHelper,
+            new BpmnVariableMappingBehavior(expressionProcessor, zeebeState),
             new BpmnEventSubscriptionBehavior(
                 stateBehavior,
                 stateTransitionBehavior,

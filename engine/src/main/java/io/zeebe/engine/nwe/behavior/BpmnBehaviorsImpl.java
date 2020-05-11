@@ -10,12 +10,11 @@ package io.zeebe.engine.nwe.behavior;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.TypedStreamWriter;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
-import io.zeebe.engine.processor.workflow.handlers.IOMappingHelper;
 
 public final class BpmnBehaviorsImpl implements BpmnBehaviors {
 
   private final ExpressionProcessor expressionBehavior;
-  private final IOMappingHelper variableMappingBehavior;
+  private final BpmnVariableMappingBehavior variableMappingBehavior;
   private final BpmnEventSubscriptionBehavior eventSubscriptionBehavior;
   private final BpmnIncidentBehavior incidentBehavior;
   private final BpmnStateBehavior stateBehavior;
@@ -25,7 +24,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
 
   public BpmnBehaviorsImpl(
       final ExpressionProcessor expressionBehavior,
-      final IOMappingHelper variableMappingBehavior,
+      final BpmnVariableMappingBehavior variableMappingBehavior,
       final BpmnEventSubscriptionBehavior eventSubscriptionBehavior,
       final BpmnIncidentBehavior incidentBehavior,
       final BpmnStateBehavior stateBehavior,
@@ -48,7 +47,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   }
 
   @Override
-  public IOMappingHelper variableMappingBehavior() {
+  public BpmnVariableMappingBehavior variableMappingBehavior() {
     return variableMappingBehavior;
   }
 
