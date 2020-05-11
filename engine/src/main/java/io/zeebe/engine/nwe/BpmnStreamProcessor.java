@@ -104,47 +104,38 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
     final var bpmnElementType = recordValue.getBpmnElementType();
     final var processor = processors.getProcessor(bpmnElementType);
 
-    final ExecutableFlowElement element = getElement(recordValue, processor);
+    if (processor == null) {
+      // TODO (saig0): remove multi-instance fallback when the processors of all multi-instance
+      // elements are migrated
+      LOGGER.debug("[NEW] No processor found for BPMN element type '{}'", bpmnElementType);
+
+      final var multiInstanceBody =
+          workflowState.getFlowElement(
+              recordValue.getWorkflowKey(),
+              recordValue.getElementIdBuffer(),
+              ExecutableMultiInstanceBody.class);
+      final var element = multiInstanceBody.getInnerActivity();
+
+      streamWriterProxy.wrap(streamWriter);
+      context.init(record, intent, element, streamWriterProxy, sideEffect);
+
+      fallback.accept(context.toStepContext());
+      return;
+    }
 
     LOGGER.debug(
         "[NEW] process workflow instance event [BPMN element type: {}, intent: {}]",
         bpmnElementType,
         intent);
 
+    final ExecutableFlowElement element = getElement(recordValue, processor);
+
     // initialize the stuff
     streamWriterProxy.wrap(streamWriter);
     context.init(record, intent, element, streamWriterProxy, sideEffect);
 
-    if (processor == null) {
-      // TODO (saig0): remove multi-instance fallback
-      LOGGER.debug("[NEW] No processor found for BPMN element type '{}'", bpmnElementType);
-      fallback.accept(context.toStepContext());
-      return;
-    }
-
     // process the event
     processEvent(intent, processor, element);
-  }
-
-  private ExecutableFlowElement getElement(
-      final WorkflowInstanceRecord recordValue,
-      final BpmnElementProcessor<ExecutableFlowElement> processor) {
-
-    // TODO (saig0): handle multi-instance body
-    final var element =
-        workflowState
-            .getWorkflowByKey(recordValue.getWorkflowKey())
-            .getWorkflow()
-            .getElementById(recordValue.getElementIdBuffer());
-
-    if (element instanceof ExecutableMultiInstanceBody
-        && recordValue.getBpmnElementType() != BpmnElementType.MULTI_INSTANCE_BODY) {
-      final var multiInstanceBody = (ExecutableMultiInstanceBody) element;
-      return multiInstanceBody.getInnerActivity();
-    }
-
-    return workflowState.getFlowElement(
-        recordValue.getWorkflowKey(), recordValue.getElementIdBuffer(), processor.getType());
   }
 
   private void processEvent(
@@ -179,5 +170,13 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
             String.format(
                 "processor '%s' can not handle intent '%s'", processor.getClass(), intent));
     }
+  }
+
+  private ExecutableFlowElement getElement(
+      final WorkflowInstanceRecord recordValue,
+      final BpmnElementProcessor<ExecutableFlowElement> processor) {
+
+    return workflowState.getFlowElement(
+        recordValue.getWorkflowKey(), recordValue.getElementIdBuffer(), processor.getType());
   }
 }
