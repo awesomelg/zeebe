@@ -12,6 +12,7 @@ import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
 import io.zeebe.engine.processor.KeyGenerator;
 import io.zeebe.engine.processor.TypedStreamWriter;
+import io.zeebe.engine.processor.workflow.WorkflowInstanceLifecycle;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowNode;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableSequenceFlow;
@@ -45,7 +46,8 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToActivated(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATING) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.ELEMENT_ACTIVATED)) {
       throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_ACTIVATED, context);
     }
 
@@ -60,7 +62,8 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToCompleting(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.ELEMENT_COMPLETING)) {
       throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETING, context);
     }
 
@@ -72,7 +75,8 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToCompleted(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.ELEMENT_COMPLETED)) {
       throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_COMPLETED, context);
     }
 
@@ -86,10 +90,8 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToTerminating(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATING
-        && context.getIntent() != WorkflowInstanceIntent.ELEMENT_ACTIVATED
-        && context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETING
-        && context.getIntent() != WorkflowInstanceIntent.EVENT_OCCURRED) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.ELEMENT_TERMINATING)) {
       throw new IllegalStateTransitionException(
           WorkflowInstanceIntent.ELEMENT_TERMINATING, context);
     }
@@ -102,7 +104,8 @@ public final class BpmnStateTransitionBehavior {
   }
 
   public void transitionToTerminated(final BpmnElementContext context) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_TERMINATING) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.ELEMENT_TERMINATED)) {
       throw new IllegalStateTransitionException(WorkflowInstanceIntent.ELEMENT_TERMINATED, context);
     }
 
@@ -122,7 +125,8 @@ public final class BpmnStateTransitionBehavior {
 
   public void takeSequenceFlow(
       final BpmnElementContext context, final ExecutableSequenceFlow sequenceFlow) {
-    if (context.getIntent() != WorkflowInstanceIntent.ELEMENT_COMPLETED) {
+    if (!WorkflowInstanceLifecycle.canTransition(
+        context.getIntent(), WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN)) {
       throw new IllegalStateTransitionException(
           WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN, context);
     }
