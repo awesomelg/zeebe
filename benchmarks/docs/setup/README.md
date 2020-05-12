@@ -53,26 +53,6 @@ If you don't need an ingress, you can simply proxy the Grafana port so it's avai
 kubectl port-forward svc/metrics-grafana-loadbalancer :80
 ```
 
-## Istio
-
-In order to enable Istio, make sure you completed the [prerequisites](https://istio.io/docs/setup/install/istioctl/#prerequisites).
-
-> If you're not sure if Istio is already installed on your cluster, you can simply verify the installation first
-
-To install Istio on your cluster, run:
-
-```sh
-kubectl apply -f istio-manifest.yml
-```
-
-Then once finished, verify that the installation is correct:
-
-```sh
-istioctl verify-install -f istio-manifest.yml
-```
-
-> The manifest was generated using `istioctl manifest generate --set addonComponents.prometheus.enabled=false`
-
 ## Linkerd
 
 A lightweight alternative to Istio, you can also set up linkerd. In order to enable linkerd, it's a good idea to install the [linkerd CLI](https://linkerd.io/2/getting-started/#step-1-install-the-cli).
