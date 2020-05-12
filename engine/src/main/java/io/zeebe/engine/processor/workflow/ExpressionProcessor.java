@@ -339,7 +339,7 @@ public final class ExpressionProcessor {
 
   private Either<Failure, EvaluationResult> typeCheck(
       final EvaluationResult result, final ResultType expectedResultType, final long scopeKey) {
-    if (!result.getType().equals(expectedResultType)) {
+    if (result.getType() != expectedResultType) {
       return Either.left(
           new Failure(
               String.format(
@@ -378,12 +378,6 @@ public final class ExpressionProcessor {
   private DirectBuffer wrapResult(final String result) {
     resultView.wrap(result.getBytes());
     return resultView;
-  }
-
-  @FunctionalInterface
-  public interface VariablesLookup {
-
-    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 
   public static final class EvaluationException extends RuntimeException {
@@ -443,5 +437,11 @@ public final class ExpressionProcessor {
 
       return lookup.getVariable(variableScopeKey, variableNameBuffer);
     }
+  }
+
+  @FunctionalInterface
+  public interface VariablesLookup {
+
+    DirectBuffer getVariable(final long scopeKey, final DirectBuffer name);
   }
 }

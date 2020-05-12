@@ -8,15 +8,7 @@
 package io.zeebe.engine.nwe;
 
 import io.zeebe.engine.Loggers;
-import io.zeebe.engine.metrics.WorkflowEngineMetrics;
-import io.zeebe.engine.nwe.behavior.BpmnBehaviors;
 import io.zeebe.engine.nwe.behavior.BpmnBehaviorsImpl;
-import io.zeebe.engine.nwe.behavior.BpmnDeferredRecordsBehavior;
-import io.zeebe.engine.nwe.behavior.BpmnEventSubscriptionBehavior;
-import io.zeebe.engine.nwe.behavior.BpmnIncidentBehavior;
-import io.zeebe.engine.nwe.behavior.BpmnStateBehavior;
-import io.zeebe.engine.nwe.behavior.BpmnStateTransitionBehavior;
-import io.zeebe.engine.nwe.behavior.BpmnVariableMappingBehavior;
 import io.zeebe.engine.nwe.behavior.TypesStreamWriterProxy;
 import io.zeebe.engine.processor.SideEffectProducer;
 import io.zeebe.engine.processor.TypedRecord;
@@ -44,9 +36,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
 
   private final BpmnElementContextImpl context;
   private final WorkflowState workflowState;
-
   private final BpmnElementProcessors processors;
-
   private final Consumer<BpmnStepContext<?>> fallback;
 
   public BpmnStreamProcessor(
@@ -54,38 +44,17 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
       final CatchEventBehavior catchEventBehavior,
       final ZeebeState zeebeState,
       final Consumer<BpmnStepContext<?>> fallback) {
-
-    workflowState = zeebeState.getWorkflowState();
-    this.fallback = fallback;
-
-    final var stateBehavior = new BpmnStateBehavior(zeebeState);
-    final var stateTransitionBehavior =
-        new BpmnStateTransitionBehavior(
-            streamWriterProxy,
-            zeebeState.getKeyGenerator(),
-            stateBehavior,
-            new WorkflowEngineMetrics(zeebeState.getPartitionId()),
-            this::getContainerProcessor);
-
-    // todo (@korthout): move composition into constructor of BpmnBhaviorsImpl
-    final BpmnBehaviors bpmnBehaviors =
-        new BpmnBehaviorsImpl(
-            expressionProcessor,
-            new BpmnVariableMappingBehavior(expressionProcessor, zeebeState),
-            new BpmnEventSubscriptionBehavior(
-                stateBehavior,
-                stateTransitionBehavior,
-                catchEventBehavior,
-                streamWriterProxy,
-                zeebeState),
-            new BpmnIncidentBehavior(zeebeState, streamWriterProxy),
-            stateBehavior,
-            stateTransitionBehavior,
-            streamWriterProxy,
-            new BpmnDeferredRecordsBehavior(zeebeState));
-
-    processors = new BpmnElementProcessors(bpmnBehaviors);
     context = new BpmnElementContextImpl(zeebeState);
+    workflowState = zeebeState.getWorkflowState();
+    processors =
+        new BpmnElementProcessors(
+            new BpmnBehaviorsImpl(
+                expressionProcessor,
+                streamWriterProxy,
+                zeebeState,
+                catchEventBehavior,
+                this::getContainerProcessor));
+    this.fallback = fallback;
   }
 
   private BpmnElementContainerProcessor<ExecutableFlowElement> getContainerProcessor(

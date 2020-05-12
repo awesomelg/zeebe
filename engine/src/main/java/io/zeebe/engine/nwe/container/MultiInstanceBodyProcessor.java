@@ -318,7 +318,7 @@ public final class MultiInstanceBodyProcessor
 
     variableReader.wrap(array, 0, array.capacity());
     variableReader.readArrayHeader();
-    variableReader.skipValues(index - 1);
+    variableReader.skipValues((long) index - 1L);
 
     final var offsetBefore = variableReader.getOffset();
     variableReader.skipValue();

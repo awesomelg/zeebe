@@ -65,7 +65,6 @@ public final class ExclusiveGatewayProcessor
     }
 
     // find outgoing sequence flow with fulfilled condition or the default
-    final var scopeKey = context.getElementInstanceKey();
     findSequenceFlowToTake(element, context)
         .ifRightOrLeft(
             sequenceFlow -> {
@@ -101,9 +100,9 @@ public final class ExclusiveGatewayProcessor
       final ExecutableExclusiveGateway element, final BpmnElementContext context) {
 
     deferredRecordsBehavior.getDeferredRecords(context).stream()
-        .filter(record -> record.getState() == WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN)
+        .filter(r -> r.hasState(WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN))
         .findFirst()
-        .map(record -> getOutgoingSequenceFlow(element, context, record))
+        .map(r -> getOutgoingSequenceFlow(element, context, r))
         .ifPresentOrElse(
             sequenceFlow -> stateTransitionBehavior.takeSequenceFlow(context, sequenceFlow),
             () -> stateTransitionBehavior.onElementCompleted(element, context));

@@ -7,9 +7,16 @@
  */
 package io.zeebe.engine.nwe.behavior;
 
+import io.zeebe.engine.metrics.WorkflowEngineMetrics;
+import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.TypedStreamWriter;
+import io.zeebe.engine.processor.workflow.CatchEventBehavior;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
+import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
+import io.zeebe.engine.state.ZeebeState;
+import io.zeebe.protocol.record.value.BpmnElementType;
+import java.util.function.Function;
 
 public final class BpmnBehaviorsImpl implements BpmnBehaviors {
 
@@ -24,21 +31,27 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
 
   public BpmnBehaviorsImpl(
       final ExpressionProcessor expressionBehavior,
-      final BpmnVariableMappingBehavior variableMappingBehavior,
-      final BpmnEventSubscriptionBehavior eventSubscriptionBehavior,
-      final BpmnIncidentBehavior incidentBehavior,
-      final BpmnStateBehavior stateBehavior,
-      final BpmnStateTransitionBehavior stateTransitionBehavior,
       final TypedStreamWriter streamWriter,
-      final BpmnDeferredRecordsBehavior deferredRecordsBehavior) {
+      final ZeebeState zeebeState,
+      final CatchEventBehavior catchEventBehavior,
+      final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
+          processorLookup) {
+    this.stateBehavior = new BpmnStateBehavior(zeebeState);
     this.expressionBehavior = expressionBehavior;
-    this.variableMappingBehavior = variableMappingBehavior;
-    this.eventSubscriptionBehavior = eventSubscriptionBehavior;
-    this.incidentBehavior = incidentBehavior;
-    this.stateBehavior = stateBehavior;
-    this.stateTransitionBehavior = stateTransitionBehavior;
+    this.variableMappingBehavior = new BpmnVariableMappingBehavior(expressionBehavior, zeebeState);
+    this.stateTransitionBehavior =
+        new BpmnStateTransitionBehavior(
+            streamWriter,
+            zeebeState.getKeyGenerator(),
+            stateBehavior,
+            new WorkflowEngineMetrics(zeebeState.getPartitionId()),
+            processorLookup);
+    this.eventSubscriptionBehavior =
+        new BpmnEventSubscriptionBehavior(
+            stateBehavior, stateTransitionBehavior, catchEventBehavior, streamWriter, zeebeState);
+    this.incidentBehavior = new BpmnIncidentBehavior(zeebeState, streamWriter);
     this.streamWriter = streamWriter;
-    this.deferredRecordsBehavior = deferredRecordsBehavior;
+    this.deferredRecordsBehavior = new BpmnDeferredRecordsBehavior(zeebeState);
   }
 
   @Override

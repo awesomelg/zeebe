@@ -128,7 +128,7 @@ public interface Either<L, R> {
    * @return either a mapped {@link Right} or a new {@link Left} if this is a right; otherwise the
    *     same left, but cast to consider the new type of the right.
    */
-  <T> Either<L, ? extends T> flatMap(Function<? super R, ? extends Either<L, ? extends T>> right);
+  <T> Either<L, T> flatMap(Function<? super R, ? extends Either<L, T>> right);
 
   /**
    * Performs the given action with the value if this is a {@link Right}, otherwise does nothing.
@@ -153,6 +153,7 @@ public interface Either<L, R> {
    */
   void ifRightOrLeft(Consumer<R> rightAction, Consumer<L> leftAction);
 
+  @SuppressWarnings("java:S2972")
   final class Right<L, R> implements Either<L, R> {
 
     private final R value;
@@ -192,8 +193,7 @@ public interface Either<L, R> {
       return (Either<T, R>) this;
     }
 
-    public <T> Either<L, ? extends T> flatMap(
-        final Function<? super R, ? extends Either<L, ? extends T>> right) {
+    public <T> Either<L, T> flatMap(final Function<? super R, ? extends Either<L, T>> right) {
       return right.apply(this.value);
     }
 
@@ -235,6 +235,7 @@ public interface Either<L, R> {
     }
   }
 
+  @SuppressWarnings("java:S2972")
   final class Left<L, R> implements Either<L, R> {
 
     private final L value;
@@ -275,9 +276,8 @@ public interface Either<L, R> {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> Either<L, ? extends T> flatMap(
-        final Function<? super R, ? extends Either<L, ? extends T>> right) {
-      return (Either<L, ? extends T>) this;
+    public <T> Either<L, T> flatMap(final Function<? super R, ? extends Either<L, T>> right) {
+      return (Either<L, T>) this;
     }
 
     @Override

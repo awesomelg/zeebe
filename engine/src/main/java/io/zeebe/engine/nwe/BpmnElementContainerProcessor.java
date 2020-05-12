@@ -29,7 +29,7 @@ public interface BpmnElementContainerProcessor<T extends ExecutableFlowElement>
    * @param flowScopeContext workflow instance-related data of the element container
    * @param childContext workflow instance-related data of the child element that is completed
    */
-  public abstract void onChildCompleted(
+  void onChildCompleted(
       final T element,
       final BpmnElementContext flowScopeContext,
       final BpmnElementContext childContext);
@@ -43,6 +43,6 @@ public interface BpmnElementContainerProcessor<T extends ExecutableFlowElement>
    * @param flowScopeContext workflow instance-related data of the element container
    * @param childContext workflow instance-related data of the child element that is terminated
    */
-  public abstract void onChildTerminated(
+  void onChildTerminated(
       T element, BpmnElementContext flowScopeContext, BpmnElementContext childContext);
 }

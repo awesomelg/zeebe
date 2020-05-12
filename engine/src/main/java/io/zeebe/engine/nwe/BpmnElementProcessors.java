@@ -15,12 +15,13 @@ import io.zeebe.engine.nwe.gateway.ExclusiveGatewayProcessor;
 import io.zeebe.engine.nwe.task.ServiceTaskProcessor;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
 import io.zeebe.protocol.record.value.BpmnElementType;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 public final class BpmnElementProcessors {
 
-  private final Map<BpmnElementType, BpmnElementProcessor<?>> processors = new HashMap<>();
+  private final Map<BpmnElementType, BpmnElementProcessor<?>> processors =
+      new EnumMap<>(BpmnElementType.class);
 
   public BpmnElementProcessors(final BpmnBehaviors bpmnBehaviors) {
     // tasks
