@@ -10,7 +10,7 @@ package io.zeebe.engine.nwe;
 import io.zeebe.engine.processor.workflow.deployment.model.element.ExecutableFlowElement;
 
 /**
- * The business logic of an BPMN element.
+ * The business logic of a BPMN element.
  *
  * <p>The execution of an element is divided into multiple steps that represents the lifecycle of
  * the element. Each step defines a set of actions that can be performed in this step. The
@@ -43,7 +43,7 @@ public interface BpmnElementProcessor<T extends ExecutableFlowElement> {
   /**
    * The element is initialized. If the element is a wait-state (i.e. it is waiting for an event or
    * an external trigger) then it is waiting in this step to continue. Otherwise, it continues
-   * directly with the next step.
+   * directly to the next step.
    *
    * <p>Possible actions:
    *
