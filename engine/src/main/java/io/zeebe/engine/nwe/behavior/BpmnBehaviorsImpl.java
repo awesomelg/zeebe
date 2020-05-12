@@ -9,6 +9,7 @@ package io.zeebe.engine.nwe.behavior;
 
 import io.zeebe.engine.metrics.WorkflowEngineMetrics;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
+import io.zeebe.engine.nwe.WorkflowInstanceStateTransitionGuard;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.TypedStreamWriter;
 import io.zeebe.engine.processor.workflow.CatchEventBehavior;
@@ -28,6 +29,7 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
   private final TypedStreamWriter streamWriter;
   private final BpmnDeferredRecordsBehavior deferredRecordsBehavior;
+  private final WorkflowInstanceStateTransitionGuard stateTransitionGuard;
 
   public BpmnBehaviorsImpl(
       final ExpressionProcessor expressionBehavior,
@@ -36,22 +38,24 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
       final CatchEventBehavior catchEventBehavior,
       final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
           processorLookup) {
-    this.stateBehavior = new BpmnStateBehavior(zeebeState);
+    stateBehavior = new BpmnStateBehavior(zeebeState);
     this.expressionBehavior = expressionBehavior;
-    this.variableMappingBehavior = new BpmnVariableMappingBehavior(expressionBehavior, zeebeState);
-    this.stateTransitionBehavior =
+    stateTransitionGuard = new WorkflowInstanceStateTransitionGuard(stateBehavior);
+    variableMappingBehavior = new BpmnVariableMappingBehavior(expressionBehavior, zeebeState);
+    stateTransitionBehavior =
         new BpmnStateTransitionBehavior(
             streamWriter,
             zeebeState.getKeyGenerator(),
             stateBehavior,
             new WorkflowEngineMetrics(zeebeState.getPartitionId()),
+            stateTransitionGuard,
             processorLookup);
-    this.eventSubscriptionBehavior =
+    eventSubscriptionBehavior =
         new BpmnEventSubscriptionBehavior(
             stateBehavior, stateTransitionBehavior, catchEventBehavior, streamWriter, zeebeState);
-    this.incidentBehavior = new BpmnIncidentBehavior(zeebeState, streamWriter);
+    incidentBehavior = new BpmnIncidentBehavior(zeebeState, streamWriter);
     this.streamWriter = streamWriter;
-    this.deferredRecordsBehavior = new BpmnDeferredRecordsBehavior(zeebeState);
+    deferredRecordsBehavior = new BpmnDeferredRecordsBehavior(zeebeState);
   }
 
   @Override
@@ -92,5 +96,10 @@ public final class BpmnBehaviorsImpl implements BpmnBehaviors {
   @Override
   public BpmnDeferredRecordsBehavior deferredRecordsBehavior() {
     return deferredRecordsBehavior;
+  }
+
+  @Override
+  public WorkflowInstanceStateTransitionGuard stateTransitionGuard() {
+    return stateTransitionGuard;
   }
 }

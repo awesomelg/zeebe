@@ -7,6 +7,7 @@
  */
 package io.zeebe.engine.nwe.behavior;
 
+import io.zeebe.engine.nwe.WorkflowInstanceStateTransitionGuard;
 import io.zeebe.engine.processor.TypedCommandWriter;
 import io.zeebe.engine.processor.workflow.ExpressionProcessor;
 
@@ -27,4 +28,6 @@ public interface BpmnBehaviors {
   BpmnStateTransitionBehavior stateTransitionBehavior();
 
   BpmnDeferredRecordsBehavior deferredRecordsBehavior();
+
+  WorkflowInstanceStateTransitionGuard stateTransitionGuard();
 }

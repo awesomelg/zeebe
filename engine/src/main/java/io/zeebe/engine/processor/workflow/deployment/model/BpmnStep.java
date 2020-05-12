@@ -74,6 +74,6 @@ public enum BpmnStep {
 
   THROW_ERROR,
 
-  // ---- new ----
+  // ---- delegate to the new BPMN lifecycle processor  ----
   BPMN_ELEMENT_PROCESSOR
 }

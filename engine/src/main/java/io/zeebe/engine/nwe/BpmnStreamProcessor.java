@@ -37,6 +37,8 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
   private final BpmnElementContextImpl context;
   private final WorkflowState workflowState;
   private final BpmnElementProcessors processors;
+  private final WorkflowInstanceStateTransitionGuard stateTransitionGuard;
+
   private final Consumer<BpmnStepContext<?>> fallback;
 
   public BpmnStreamProcessor(
@@ -44,17 +46,20 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
       final CatchEventBehavior catchEventBehavior,
       final ZeebeState zeebeState,
       final Consumer<BpmnStepContext<?>> fallback) {
-    context = new BpmnElementContextImpl(zeebeState);
     workflowState = zeebeState.getWorkflowState();
-    processors =
-        new BpmnElementProcessors(
-            new BpmnBehaviorsImpl(
-                expressionProcessor,
-                streamWriterProxy,
-                zeebeState,
-                catchEventBehavior,
-                this::getContainerProcessor));
+    context = new BpmnElementContextImpl(zeebeState);
+
+    final var bpmnBehaviors =
+        new BpmnBehaviorsImpl(
+            expressionProcessor,
+            streamWriterProxy,
+            zeebeState,
+            catchEventBehavior,
+            this::getContainerProcessor);
+    processors = new BpmnElementProcessors(bpmnBehaviors);
+
     this.fallback = fallback;
+    stateTransitionGuard = bpmnBehaviors.stateTransitionGuard();
   }
 
   private BpmnElementContainerProcessor<ExecutableFlowElement> getContainerProcessor(
@@ -105,7 +110,9 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<WorkflowI
     context.init(record, intent, element, streamWriterProxy, sideEffect);
 
     // process the event
-    processEvent(intent, processor, element);
+    if (stateTransitionGuard.isValidStateTransition(context)) {
+      processEvent(intent, processor, element);
+    }
   }
 
   private void processEvent(

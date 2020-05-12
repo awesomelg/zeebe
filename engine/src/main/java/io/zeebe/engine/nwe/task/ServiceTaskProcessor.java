@@ -55,6 +55,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivating(final ExecutableServiceTask element, final BpmnElementContext context) {
+
     variableMappingBehavior
         .applyInputMappings(context, element)
         .flatMap(ok -> eventSubscriptionBehavior.subscribeToEvents(element, context))
@@ -65,6 +66,7 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onActivated(final ExecutableServiceTask element, final BpmnElementContext context) {
+
     final var scopeKey = context.getElementInstanceKey();
     final Either<Failure, String> jobTypeOrFailure =
         expressionBehavior.evaluateStringExpression(element.getType(), scopeKey);
@@ -78,12 +80,6 @@ public final class ServiceTaskProcessor implements BpmnElementProcessor<Executab
 
   @Override
   public void onCompleting(final ExecutableServiceTask element, final BpmnElementContext context) {
-
-    // TODO (saig0): extract guard check and perform also on other transitions
-    final var flowScopeInstance = stateBehavior.getFlowScopeInstance(context);
-    if (!flowScopeInstance.isActive()) {
-      return;
-    }
 
     variableMappingBehavior
         .applyOutputMappings(context, element)

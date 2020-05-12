@@ -10,6 +10,7 @@ package io.zeebe.engine.nwe.behavior;
 import io.zeebe.engine.metrics.WorkflowEngineMetrics;
 import io.zeebe.engine.nwe.BpmnElementContainerProcessor;
 import io.zeebe.engine.nwe.BpmnElementContext;
+import io.zeebe.engine.nwe.WorkflowInstanceStateTransitionGuard;
 import io.zeebe.engine.processor.KeyGenerator;
 import io.zeebe.engine.processor.TypedStreamWriter;
 import io.zeebe.engine.processor.workflow.WorkflowInstanceLifecycle;
@@ -29,6 +30,7 @@ public final class BpmnStateTransitionBehavior {
   private final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
       processorLookUp;
 
+  private final WorkflowInstanceStateTransitionGuard stateTransitionGuard;
   private final WorkflowEngineMetrics metrics;
 
   public BpmnStateTransitionBehavior(
@@ -36,12 +38,14 @@ public final class BpmnStateTransitionBehavior {
       final KeyGenerator keyGenerator,
       final BpmnStateBehavior stateBehavior,
       final WorkflowEngineMetrics metrics,
+      final WorkflowInstanceStateTransitionGuard stateTransitionGuard,
       final Function<BpmnElementType, BpmnElementContainerProcessor<ExecutableFlowElement>>
           processorLookUp) {
     this.streamWriter = streamWriter;
     this.keyGenerator = keyGenerator;
     this.stateBehavior = stateBehavior;
     this.metrics = metrics;
+    this.stateTransitionGuard = stateTransitionGuard;
     this.processorLookUp = processorLookUp;
   }
 
@@ -53,11 +57,7 @@ public final class BpmnStateTransitionBehavior {
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_ACTIVATED);
 
-    // update state because of the step guards
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_ACTIVATED));
-
+    stateTransitionGuard.registerStateTransition(context, WorkflowInstanceIntent.ELEMENT_ACTIVATED);
     metrics.elementInstanceActivated(context.getBpmnElementType());
   }
 
@@ -68,10 +68,8 @@ public final class BpmnStateTransitionBehavior {
     }
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETING);
-
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETING));
+    stateTransitionGuard.registerStateTransition(
+        context, WorkflowInstanceIntent.ELEMENT_COMPLETING);
   }
 
   public void transitionToCompleted(final BpmnElementContext context) {
@@ -82,10 +80,7 @@ public final class BpmnStateTransitionBehavior {
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_COMPLETED);
 
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_COMPLETED));
-
+    stateTransitionGuard.registerStateTransition(context, WorkflowInstanceIntent.ELEMENT_COMPLETED);
     metrics.elementInstanceCompleted(context.getBpmnElementType());
   }
 
@@ -97,10 +92,8 @@ public final class BpmnStateTransitionBehavior {
     }
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_TERMINATING);
-
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_TERMINATING));
+    stateTransitionGuard.registerStateTransition(
+        context, WorkflowInstanceIntent.ELEMENT_TERMINATING);
   }
 
   public void transitionToTerminated(final BpmnElementContext context) {
@@ -111,10 +104,8 @@ public final class BpmnStateTransitionBehavior {
 
     transitionTo(context, WorkflowInstanceIntent.ELEMENT_TERMINATED);
 
-    stateBehavior.updateElementInstance(
-        context,
-        elementInstance -> elementInstance.setState(WorkflowInstanceIntent.ELEMENT_TERMINATED));
-
+    stateTransitionGuard.registerStateTransition(
+        context, WorkflowInstanceIntent.ELEMENT_TERMINATED);
     metrics.elementInstanceTerminated(context.getBpmnElementType());
   }
 
